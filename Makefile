@@ -488,12 +488,12 @@ release-minor: bump-minor gen-project-py
 release-major: bump-major gen-project-py
 	$(call _release_impl)
 
-## tag                  – Pull latest, create a version tag from uv version, and push
+## tag                  – Pull latest, create a v-prefixed git tag from uv version, and push
 .PHONY: tag
 tag:
 	git pull
-	git tag $$(uv version --short)
-	git push origin $$(uv version --short)
+	git tag v$$(uv version --short)
+	git push origin v$$(uv version --short)
 
 ## release-patch-beta-tag – release-patch-beta + tag
 .PHONY: release-patch-beta-tag
