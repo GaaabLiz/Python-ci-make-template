@@ -548,6 +548,7 @@ ci-export-config:
 	@echo "pypi_environment=$(CI_PYPI_ENVIRONMENT)" >> "$$GITHUB_OUTPUT"
 	@echo "changelog_file=$(CI_CHANGELOG_FILE)" >> "$$GITHUB_OUTPUT"
 	@echo "release_notes_file=$(CI_RELEASE_NOTES_FILE)" >> "$$GITHUB_OUTPUT"
+	@echo "git_cliff_config=$(CI_GIT_CLIFF_CONFIG)" >> "$$GITHUB_OUTPUT"
 	@{ \
 		echo "release_artifacts<<EOF"; \
 		$(MAKE) --no-print-directory ci-release-artifacts; \
@@ -562,12 +563,12 @@ ci-install-git-cliff:
 ## ci-generate-changelog  – Generate the full changelog file configured in CI_CHANGELOG_FILE
 .PHONY: ci-generate-changelog
 ci-generate-changelog:
-	uvx git-cliff --output $(CI_CHANGELOG_FILE)
+	uvx git-cliff --config $(CI_GIT_CLIFF_CONFIG) --output $(CI_CHANGELOG_FILE)
 
 ## ci-generate-release-notes – Generate latest release notes into CI_RELEASE_NOTES_FILE
 .PHONY: ci-generate-release-notes
 ci-generate-release-notes:
-	uvx git-cliff --latest --strip header > $(CI_RELEASE_NOTES_FILE)
+	uvx git-cliff --config $(CI_GIT_CLIFF_CONFIG) --latest --strip header > $(CI_RELEASE_NOTES_FILE)
 
 ## ci-commit-changelog    – Commit and push changelog updates to RELEASE_CHANGELOG_TARGET_BRANCH
 .PHONY: ci-commit-changelog

@@ -99,6 +99,9 @@ CI_PYPI_ENVIRONMENT ?= pypi
 CI_CHANGELOG_FILE ?= CHANGELOG.md
 CI_RELEASE_NOTES_FILE ?= RELEASE_NOTES.md
 
+# git-cliff configuration file used by CI release targets.
+CI_GIT_CLIFF_CONFIG ?= cliff.toml
+
 
 # ==============================================================================
 #  4. WINDOWS INSTALLER SETTINGS  (only relevant when ENABLE_WINDOWS_INSTALLER=1)
