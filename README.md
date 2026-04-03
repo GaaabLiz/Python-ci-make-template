@@ -1,5 +1,12 @@
 # Python CI Make Template
 
+[![CI](https://img.shields.io/github/actions/workflow/status/YOUR_ORG/YOUR_REPO/ci.yml?branch=main&label=CI)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/YOUR_ORG/YOUR_REPO/release.yml?label=Release)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/release.yml)
+[![Publish PyPI](https://img.shields.io/github/actions/workflow/status/YOUR_ORG/YOUR_REPO/publish-pypi.yml?label=PyPI)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/publish-pypi.yml)
+[![Python](https://img.shields.io/badge/python-3.13%2B-blue)](#before-you-start)
+
+> Replace `YOUR_ORG/YOUR_REPO` in the badge URLs after creating your own repository.
+
 A simple, reusable, **low-setup** starter template for Python projects.
 
 This repository gives you a clean foundation with:
@@ -31,11 +38,12 @@ The goal is simple:
 11. [Makefile Documentation](#makefile-documentation)
 12. [CI/CD Documentation](#cicd-documentation)
 13. [GitHub Repository Setup for CI/CD](#github-repository-setup-for-cicd)
-14. [Optional Qt Support](#optional-qt-support)
-15. [Common Project Scenarios](#common-project-scenarios)
-16. [Recommended First Commands](#recommended-first-commands)
-17. [Troubleshooting](#troubleshooting)
-18. [Final Advice](#final-advice)
+14. [Copy-Paste Starter Project Example](#copy-paste-starter-project-example)
+15. [Optional Qt Support](#optional-qt-support)
+16. [Common Project Scenarios](#common-project-scenarios)
+17. [Recommended First Commands](#recommended-first-commands)
+18. [Troubleshooting](#troubleshooting)
+19. [Final Advice](#final-advice)
 
 ---
 
@@ -368,6 +376,14 @@ The GitHub Release workflow for changelog, release notes, and release assets.
 
 The optional PyPI publishing workflow.
 
+### `CHANGELOG.md`
+
+The changelog file generated and updated by the release flow.
+
+### `cliff.toml`
+
+The `git-cliff` configuration file that defines how commit history is transformed into changelog entries.
+
 ---
 
 ## How to Start a New Project From This Template
@@ -610,6 +626,7 @@ CI_ENABLE_PYPI_PUBLISH ?= 0
 CI_PYPI_ENVIRONMENT ?= pypi
 CI_CHANGELOG_FILE ?= CHANGELOG.md
 CI_RELEASE_NOTES_FILE ?= RELEASE_NOTES.md
+CI_GIT_CLIFF_CONFIG ?= cliff.toml
 ```
 
 These values control behavior in GitHub Actions.
@@ -633,6 +650,9 @@ These values control behavior in GitHub Actions.
 
 - `CI_CHANGELOG_FILE`, `CI_RELEASE_NOTES_FILE`
   Output file names used during the release workflow.
+
+- `CI_GIT_CLIFF_CONFIG`
+  Path to the `git-cliff` configuration file used to generate changelog and release notes.
 
 ### 4. Release artifact settings
 
@@ -1004,6 +1024,7 @@ UV_PUBLISH_TOKEN
 ```makefile
 CI_ENABLE_PYPI_PUBLISH ?= 0
 CI_PYPI_ENVIRONMENT ?= pypi
+CI_GIT_CLIFF_CONFIG ?= cliff.toml
 ```
 
 ---
@@ -1110,6 +1131,94 @@ ENABLE_WINDOWS_INSTALLER ?= 0
 In most cases, that is enough.
 
 You usually do **not** need to edit the workflow YAML files at all.
+
+---
+
+## Copy-Paste Starter Project Example
+
+If you want the fastest start possible, copy this minimal structure and then replace `myapp` with your package name.
+
+### Suggested minimal tree
+
+```text
+my-new-project/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       ├── release.yml
+│       └── publish-pypi.yml
+├── myapp/
+│   ├── __init__.py
+│   └── cli.py
+├── tests/
+│   └── test_smoke.py
+├── CHANGELOG.md
+├── cliff.toml
+├── Makefile
+├── project.mk
+├── pyproject.toml
+└── qt.mk
+```
+
+### Minimal `myapp/cli.py`
+
+```python
+def main() -> None:
+    print("Hello from myapp")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Minimal `tests/test_smoke.py`
+
+```python
+def test_smoke() -> None:
+    assert True
+```
+
+### Minimal `project.mk` values to change first
+
+```makefile
+PYTHON_MAIN_PACKAGE ?= myapp
+
+# Optional CI tuning
+CI_BUILD_LINUX ?= 1
+CI_BUILD_MACOS ?= 1
+CI_BUILD_WINDOWS ?= 1
+CI_ENABLE_PYPI_PUBLISH ?= 0
+```
+
+### Minimal `pyproject.toml` skeleton
+
+```toml
+[project]
+name = "myapp"
+version = "0.1.0"
+description = "My new project"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pdoc",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
+```
+
+### First run commands
+
+```bash
+make install-dev
+make qa
+make build
+```
+
+If these pass, your starter project is correctly wired.
 
 ---
 
