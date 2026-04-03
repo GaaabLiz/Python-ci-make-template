@@ -522,22 +522,106 @@ release-major-tag: release-major tag
 #  | |____ _| |_  | |  | | |____| |____| |    | |____| | \ \ ____) |
 #   \_____|_____| |_|  |_|______|______|_|    |______|_|  \_\_____/
 #
-#  Lightweight echo targets designed to be consumed by GitHub Actions steps.
-#  They output plain values (no decoration) so they are easy to capture with:
-#      - run: echo "value=$(make ci-xxx)"
+#  Make-first targets consumed by GitHub Actions workflows.
+#  Keep all shell logic here so workflow files stay short and generic.
 # ==============================================================================
 
-## ci-release-branch    – Print RELEASE_CHANGELOG_TARGET_BRANCH
+## ci-setup               – Prepare CI environment (install Python via uv + sync all groups)
+.PHONY: ci-setup
+ci-setup:
+	uv python install $(CI_PYTHON_VERSION)
+	uv sync --all-groups
+
+## ci-export-config       – Export CI configuration values to $GITHUB_OUTPUT
+.PHONY: ci-export-config
+ci-export-config:
+	@if [ -z "$$GITHUB_OUTPUT" ]; then \
+		echo "Error: GITHUB_OUTPUT is not set."; \
+		exit 1; \
+	fi
+	@echo "release_branch=$(RELEASE_CHANGELOG_TARGET_BRANCH)" >> "$$GITHUB_OUTPUT"
+	@echo "windows_installer_enabled=$(ENABLE_WINDOWS_INSTALLER)" >> "$$GITHUB_OUTPUT"
+	@echo "build_linux=$(CI_BUILD_LINUX)" >> "$$GITHUB_OUTPUT"
+	@echo "build_macos=$(CI_BUILD_MACOS)" >> "$$GITHUB_OUTPUT"
+	@echo "build_windows=$(CI_BUILD_WINDOWS)" >> "$$GITHUB_OUTPUT"
+	@echo "enable_pypi_publish=$(CI_ENABLE_PYPI_PUBLISH)" >> "$$GITHUB_OUTPUT"
+	@echo "pypi_environment=$(CI_PYPI_ENVIRONMENT)" >> "$$GITHUB_OUTPUT"
+	@echo "changelog_file=$(CI_CHANGELOG_FILE)" >> "$$GITHUB_OUTPUT"
+	@echo "release_notes_file=$(CI_RELEASE_NOTES_FILE)" >> "$$GITHUB_OUTPUT"
+	@{ \
+		echo "release_artifacts<<EOF"; \
+		$(MAKE) --no-print-directory ci-release-artifacts; \
+		echo "EOF"; \
+	} >> "$$GITHUB_OUTPUT"
+
+## ci-install-git-cliff   – Ensure git-cliff is available in CI
+.PHONY: ci-install-git-cliff
+ci-install-git-cliff:
+	uv tool install git-cliff
+
+## ci-generate-changelog  – Generate the full changelog file configured in CI_CHANGELOG_FILE
+.PHONY: ci-generate-changelog
+ci-generate-changelog:
+	uvx git-cliff --output $(CI_CHANGELOG_FILE)
+
+## ci-generate-release-notes – Generate latest release notes into CI_RELEASE_NOTES_FILE
+.PHONY: ci-generate-release-notes
+ci-generate-release-notes:
+	uvx git-cliff --latest --strip header > $(CI_RELEASE_NOTES_FILE)
+
+## ci-commit-changelog    – Commit and push changelog updates to RELEASE_CHANGELOG_TARGET_BRANCH
+.PHONY: ci-commit-changelog
+ci-commit-changelog:
+	git config user.name "github-actions[bot]"
+	git config user.email "github-actions[bot]@users.noreply.github.com"
+	git add $(CI_CHANGELOG_FILE)
+	@if git diff --staged --quiet; then \
+		echo "No changes to $(CI_CHANGELOG_FILE)"; \
+	else \
+		git commit -m "chore: update changelog [skip ci]"; \
+		git fetch origin; \
+		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)" || echo "Push failed, continuing..."; \
+	fi
+
+## ci-build-release-assets – Build release assets for the current runner OS
+.PHONY: ci-build-release-assets
+ci-build-release-assets:
+	@if [ "$(OS_NAME)" = "windows" ] && [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
+		$(MAKE) --no-print-directory install-inno; \
+		$(MAKE) --no-print-directory build-installer; \
+	else \
+		$(MAKE) --no-print-directory build-exe-onefile; \
+	fi
+
+## ci-publish-pypi        – Publish package artifacts to PyPI (requires UV_PUBLISH_TOKEN)
+.PHONY: ci-publish-pypi
+ci-publish-pypi:
+	uv publish
+
+## ci-release-branch      – Print RELEASE_CHANGELOG_TARGET_BRANCH
 .PHONY: ci-release-branch
 ci-release-branch:
 	@echo $(RELEASE_CHANGELOG_TARGET_BRANCH)
 
-## ci-windows-installer – Print ENABLE_WINDOWS_INSTALLER (1 or 0)
+## ci-windows-installer   – Print ENABLE_WINDOWS_INSTALLER (1 or 0)
 .PHONY: ci-windows-installer
 ci-windows-installer:
 	@echo $(ENABLE_WINDOWS_INSTALLER)
 
-## ci-release-artifacts – Print each RELEASE_ARTIFACTS glob pattern on its own line
+## ci-release-artifacts   – Print each RELEASE_ARTIFACTS glob pattern on its own line
 .PHONY: ci-release-artifacts
 ci-release-artifacts:
 	@set -f; for pattern in $(RELEASE_ARTIFACTS); do printf '%s\n' "$$pattern"; done
+
+## ci-print-release-target-branch – Legacy alias of ci-release-branch
+.PHONY: ci-print-release-target-branch
+ci-print-release-target-branch: ci-release-branch
+
+## ci-print-windows-installer-enabled – Legacy alias of ci-windows-installer
+.PHONY: ci-print-windows-installer-enabled
+ci-print-windows-installer-enabled: ci-windows-installer
+
+## ci-print-release-artifacts – Legacy alias of ci-release-artifacts
+.PHONY: ci-print-release-artifacts
+ci-print-release-artifacts: ci-release-artifacts
+
