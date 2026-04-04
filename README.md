@@ -681,6 +681,16 @@ RELEASE_ARTIFACTS ?= $(foreach a,$(APPS_LIST),dist/$($(a)_NAME)-*) Output/*.exe
 ENABLE_WINDOWS_INSTALLER ?= 0
 INNO_SETUP_FILE ?= installer.iss
 INNO_SETUP_VERSION_VARIABLE ?= MyAppVersion
+INNO_APP_NAME ?= My App
+INNO_APP_PUBLISHER ?= Your Company
+INNO_APP_ICON ?= resources/icon.ico
+INNO_APP_EXE ?= dist/myapp-windows.exe
+INNO_DEFAULT_DIR_NAME ?= {autopf}\My App
+INNO_DEFAULT_GROUP_NAME ?= My App
+INNO_OUTPUT_DIR ?= Output
+INNO_OUTPUT_BASE_FILENAME ?= myapp-setup
+INNO_COMPRESSION ?= lzma
+INNO_SOLID_COMPRESSION ?= yes
 ```
 
 Use these only if your project creates a Windows installer.
@@ -689,6 +699,12 @@ If you do not need a Windows installer, keep:
 
 ```makefile
 ENABLE_WINDOWS_INSTALLER ?= 0
+```
+
+When installer support is enabled, generate or refresh the Inno Setup script with:
+
+```bash
+make gen-inno-iss
 ```
 
 ### 6. Executable app settings
@@ -767,6 +783,7 @@ These targets prepare your local environment.
 | Target | Purpose |
 |---|---|
 | `make gen-project-py` | Generate `$(PYTHON_MAIN_PACKAGE)/project.py` from `pyproject.toml` |
+| `make gen-inno-iss` | Generate `$(INNO_SETUP_FILE)` from `project.mk` installer settings |
 
 ### Quality targets
 
@@ -1321,9 +1338,17 @@ Set:
 ENABLE_WINDOWS_INSTALLER ?= 1
 INNO_SETUP_FILE ?= installer.iss
 INNO_SETUP_VERSION_VARIABLE ?= MyAppVersion
+INNO_APP_EXE ?= dist/myapp-windows.exe
 ```
 
 Also configure your executable app block and artifact patterns.
+
+Then generate the script and build:
+
+```bash
+make gen-inno-iss
+make build-installer
+```
 
 Example:
 

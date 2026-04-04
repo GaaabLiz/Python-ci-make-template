@@ -106,7 +106,8 @@ CI_GIT_CLIFF_CONFIG ?= cliff.toml
 # ==============================================================================
 #  4. WINDOWS INSTALLER SETTINGS  (only relevant when ENABLE_WINDOWS_INSTALLER=1)
 #
-#  These variables drive the `installer` and `build-installer` targets.
+#  These variables drive the `gen-inno-iss`, `installer`, and
+#  `build-installer` targets.
 # ==============================================================================
 
 # Path to the Inno Setup script (.iss) used to generate the Windows installer.
@@ -115,6 +116,39 @@ INNO_SETUP_FILE ?= installer.iss
 # Name of the #define inside the .iss file that holds the application version
 # string.  The release bump targets update this value automatically via sed.
 INNO_SETUP_VERSION_VARIABLE ?= MyAppVersion
+
+# Display name shown in the installer UI (e.g., "My App").
+INNO_APP_NAME ?= My App
+
+# Publisher/company name shown in installer metadata.
+INNO_APP_PUBLISHER ?= Your Company
+
+# Relative path (from repo root) to the app icon used by SetupIconFile.
+# Must point to a .ico file for Windows installers.
+INNO_APP_ICON ?= resources/icon.ico
+
+# Relative path to the one-file executable produced by build-exe-onefile.
+# This is the binary that Inno Setup will package.
+INNO_APP_EXE ?= dist/myapp-windows.exe
+
+# Default install directory under Program Files.
+# Typical value: {autopf}\My App
+INNO_DEFAULT_DIR_NAME ?= {autopf}\$(INNO_APP_NAME)
+
+# Default Start Menu group/folder name.
+INNO_DEFAULT_GROUP_NAME ?= $(INNO_APP_NAME)
+
+# Directory where Inno Setup writes the generated installer .exe.
+INNO_OUTPUT_DIR ?= Output
+
+# Base filename (without extension) for the generated installer.
+INNO_OUTPUT_BASE_FILENAME ?= $(PYTHON_MAIN_PACKAGE)-setup
+
+# Compression mode used by Inno Setup for packaged files.
+INNO_COMPRESSION ?= lzma
+
+# Enable modern solid compression mode (yes/no).
+INNO_SOLID_COMPRESSION ?= yes
 
 
 # ==============================================================================
