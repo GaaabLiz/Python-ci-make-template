@@ -1,11 +1,10 @@
 # Python CI Make Template
 
-[![CI](https://img.shields.io/github/actions/workflow/status/YOUR_ORG/YOUR_REPO/ci.yml?branch=main&label=CI)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/actions/workflow/status/YOUR_ORG/YOUR_REPO/release.yml?label=Release)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/release.yml)
-[![Publish PyPI](https://img.shields.io/github/actions/workflow/status/YOUR_ORG/YOUR_REPO/publish-pypi.yml?label=PyPI)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/publish-pypi.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/ci.yml?branch=main&label=CI)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/release.yml?label=Release)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/release.yml)
+[![Publish PyPI](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/publish-pypi.yml?label=PyPI)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/publish-pypi.yml)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](#before-you-start)
 
-> Replace `YOUR_ORG/YOUR_REPO` in the badge URLs after creating your own repository.
 
 A simple, reusable, **low-setup** starter template for Python projects.
 
