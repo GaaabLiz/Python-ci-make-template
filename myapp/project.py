@@ -1,7 +1,7 @@
 # fmt: off
-name = 'myapp'
-version = '0.1.0'
-description = 'Mini progetto per test end-to-end del template Makefile'
+name = 'python-ci-make-template'
+version = '0.0.2'
+description = 'Add your description here'
 requires_python = '>=3.13'
-authors = [('Template Tester', 'tester@example.com')]
+authors = []
 # fmt: on
