@@ -337,8 +337,8 @@ wheels = [
 
 [[package]]
 name = "python-ci-make-template"
-version = "0.1.2"
-source = { virtual = "." }
+version = "0.0.1"
+source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
