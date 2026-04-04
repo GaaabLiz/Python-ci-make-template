@@ -112,10 +112,10 @@ install:
 	uv sync
 	uv sync --all-extras
 
-## install-all          – Install Python 3.12, sync all groups, and run uv build
+## install-all          – Install configured Python, sync all groups, and run uv build
 .PHONY: install-all
 install-all:
-	uv python install 3.12
+	uv python install $(CI_PYTHON_VERSION)
 	uv sync --all-groups
 	uv build
 
@@ -132,6 +132,10 @@ install-pyinstaller:
 ## install-inno         – Install Inno Setup via Chocolatey (Windows only)
 .PHONY: install-inno
 install-inno:
+	@if [ "$(OS_NAME)" != "windows" ]; then \
+		echo "Error: install-inno is available only on Windows."; \
+		exit 1; \
+	fi
 	choco install innosetup
 
 
@@ -187,11 +191,13 @@ gen-project-py:
 		'        for name, email in info["authors"]' \
 		'    ) + "]"' \
 		'    lines = [' \
+		'        "# fmt: off",' \
 		'        "name = " + repr(info["name"]),' \
 		'        "version = " + repr(info["version"]),' \
 		'        "description = " + repr(info["description"]),' \
 		'        "requires_python = " + repr(info["requires_python"]),' \
 		'        "authors = " + authors_repr,' \
+		'        "# fmt: on",' \
 		'    ]' \
 		'    py_file.parent.mkdir(parents=True, exist_ok=True)' \
 		'    with py_file.open("w", encoding="utf-8") as f:' \
@@ -290,7 +296,7 @@ build-uv:
 .PHONY: build-exe
 build-exe:
 	$(foreach app,$(APPS_LIST),\
-		uv run pyinstaller --windowed \
+		uv run pyinstaller --noconfirm --windowed \
 			--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
 			--name=$($(app)_NAME)-$(OS_NAME) \
 			$($(app)_MAIN); \
@@ -300,7 +306,7 @@ build-exe:
 .PHONY: build-exe-onefile
 build-exe-onefile:
 	$(foreach app,$(APPS_LIST),\
-		uv run pyinstaller --windowed --onefile \
+		uv run pyinstaller --noconfirm --windowed --onefile \
 			--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
 			--name=$($(app)_NAME)-$(OS_NAME) \
 			$($(app)_MAIN); \
