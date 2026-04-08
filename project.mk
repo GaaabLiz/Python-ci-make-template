@@ -102,6 +102,26 @@ CI_RELEASE_NOTES_FILE ?= RELEASE_NOTES.md
 # git-cliff configuration file used by CI release targets.
 CI_GIT_CLIFF_CONFIG ?= cliff.toml
 
+# Enable/disable Docker image publication to Docker Hub on release tags.
+# Keep this at 0 until Docker Hub repository and GitHub secrets are configured.
+CI_ENABLE_DOCKERHUB_PUBLISH ?= 0
+
+# GitHub Actions environment name used by the Docker Hub publish workflow.
+CI_DOCKERHUB_ENVIRONMENT ?= dockerhub
+
+# Full Docker Hub image name in the form: <namespace>/<repository>.
+# Example: gaaabliz/myapp
+CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
+
+# Path to the Dockerfile used for image builds.
+CI_DOCKERFILE ?= Dockerfile
+
+# Build context path passed to `docker build`.
+CI_DOCKER_BUILD_CONTEXT ?= .
+
+# Also push the `latest` tag during release publication (1=yes, 0=no).
+CI_DOCKER_PUSH_LATEST ?= 1
+
 
 # ==============================================================================
 #  4. WINDOWS INSTALLER SETTINGS  (only relevant when ENABLE_WINDOWS_INSTALLER=1)

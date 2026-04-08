@@ -3,6 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/ci.yml?branch=main&label=CI)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/release.yml?label=Release)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/release.yml)
 [![Publish PyPI](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/publish-pypi.yml?label=PyPI)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/publish-pypi.yml)
+[![Publish Docker Hub](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/publish-dockerhub.yml?label=Docker%20Hub)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/publish-dockerhub.yml)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](#before-you-start)
 
 
@@ -15,6 +16,7 @@ This repository gives you a clean foundation with:
 - optional `qt.mk` support for Qt / PySide6 projects
 - GitHub Actions workflows that call **Make targets**, not random shell commands
 - a release flow for changelog generation, GitHub Releases, build artifacts, and optional PyPI publishing
+- optional Docker Hub image publishing on release tags
 
 The goal is simple:
 
@@ -375,6 +377,10 @@ The GitHub Release workflow for changelog, release notes, and release assets.
 
 The optional PyPI publishing workflow.
 
+### `.github/workflows/publish-dockerhub.yml`
+
+The optional Docker Hub publishing workflow.
+
 ### `CHANGELOG.md`
 
 The changelog file generated and updated by the release flow.
@@ -623,6 +629,12 @@ CI_BUILD_MACOS ?= 1
 CI_BUILD_WINDOWS ?= 1
 CI_ENABLE_PYPI_PUBLISH ?= 0
 CI_PYPI_ENVIRONMENT ?= pypi
+CI_ENABLE_DOCKERHUB_PUBLISH ?= 0
+CI_DOCKERHUB_ENVIRONMENT ?= dockerhub
+CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
+CI_DOCKERFILE ?= Dockerfile
+CI_DOCKER_BUILD_CONTEXT ?= .
+CI_DOCKER_PUSH_LATEST ?= 1
 CI_CHANGELOG_FILE ?= CHANGELOG.md
 CI_RELEASE_NOTES_FILE ?= RELEASE_NOTES.md
 CI_GIT_CLIFF_CONFIG ?= cliff.toml
@@ -646,6 +658,21 @@ These values control behavior in GitHub Actions.
 
 - `CI_PYPI_ENVIRONMENT`
   GitHub Actions environment name used by the PyPI workflow.
+
+- `CI_ENABLE_DOCKERHUB_PUBLISH`
+  Set to `1` only when you want the Docker Hub workflow to publish.
+
+- `CI_DOCKERHUB_ENVIRONMENT`
+  GitHub Actions environment name used by the Docker Hub workflow.
+
+- `CI_DOCKERHUB_IMAGE`
+  Full Docker Hub image name (for example: `your-user/your-image`).
+
+- `CI_DOCKERFILE`, `CI_DOCKER_BUILD_CONTEXT`
+  Dockerfile path and build context path used to build the image.
+
+- `CI_DOCKER_PUSH_LATEST`
+  Set to `1` to also push a `latest` tag on releases.
 
 - `CI_CHANGELOG_FILE`, `CI_RELEASE_NOTES_FILE`
   Output file names used during the release workflow.
@@ -859,12 +886,15 @@ These are mainly for GitHub Actions, but they are still regular Make targets.
 | `make ci-commit-changelog` | Commit and push the changelog |
 | `make ci-build-release-assets` | Build release assets for the current runner OS |
 | `make ci-publish-pypi` | Publish to PyPI |
+| `make ci-docker-login` | Login to Docker Hub with CI secrets |
+| `make ci-export-docker-tag` | Export Docker tag to GitHub Actions output |
+| `make ci-publish-dockerhub` | Build and push Docker image to Docker Hub |
 
 ---
 
 ## CI/CD Documentation
 
-The repository includes three GitHub Actions workflows.
+The repository includes four GitHub Actions workflows.
 
 They are intentionally small because most real logic lives in `Makefile`.
 
@@ -1045,6 +1075,64 @@ CI_GIT_CLIFF_CONFIG ?= cliff.toml
 
 ---
 
+### 4. `publish-dockerhub.yml`
+
+File:
+
+```text
+.github/workflows/publish-dockerhub.yml
+```
+
+### When it runs
+
+It runs on:
+
+- tags matching `v*`
+- manual runs
+
+### Important behavior
+
+This workflow is **gated** by a project setting.
+
+It will only publish if:
+
+```makefile
+CI_ENABLE_DOCKERHUB_PUBLISH ?= 1
+```
+
+If this value is `0`, the workflow will not publish.
+
+### What it does
+
+1. reads CI config with `make ci-export-config`
+2. logs in to Docker Hub with `make ci-docker-login`
+3. resolves image tag with `make ci-export-docker-tag`
+4. builds and pushes with `make ci-publish-dockerhub`
+
+### Required GitHub secrets
+
+To publish to Docker Hub, you need:
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+```
+
+Use a Docker Hub access token for `DOCKERHUB_TOKEN` (recommended), not your account password.
+
+### Related `project.mk` settings
+
+```makefile
+CI_ENABLE_DOCKERHUB_PUBLISH ?= 0
+CI_DOCKERHUB_ENVIRONMENT ?= dockerhub
+CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
+CI_DOCKERFILE ?= Dockerfile
+CI_DOCKER_BUILD_CONTEXT ?= .
+CI_DOCKER_PUSH_LATEST ?= 1
+```
+
+---
+
 ## GitHub Repository Setup for CI/CD
 
 The workflows are designed to work with very little editing, but there are still a few repository-level settings you may want to configure.
@@ -1062,6 +1150,7 @@ Suggested adoption order:
 1. `ci.yml`
 2. `release.yml`
 3. `publish-pypi.yml`
+4. `publish-dockerhub.yml`
 
 This keeps your first setup simple.
 
@@ -1083,7 +1172,25 @@ CI_ENABLE_PYPI_PUBLISH ?= 1
 
 If you leave that variable at `0`, the publish workflow stays effectively disabled.
 
-### 4. Optional: configure a GitHub Environment for PyPI
+#### For Docker Hub publishing
+
+Create these repository or environment secrets:
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+```
+
+Then enable Docker Hub publishing in `project.mk`:
+
+```makefile
+CI_ENABLE_DOCKERHUB_PUBLISH ?= 1
+CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
+```
+
+If you leave `CI_ENABLE_DOCKERHUB_PUBLISH` at `0`, the Docker workflow stays effectively disabled.
+
+### 4. Optional: configure a GitHub Environment for PyPI and Docker Hub
 
 If you want approval rules or environment-level protection, create the environment named in:
 
@@ -1093,9 +1200,17 @@ CI_PYPI_ENVIRONMENT ?= pypi
 
 If you want another name, change it in `project.mk`.
 
+For Docker Hub you can configure:
+
+```makefile
+CI_DOCKERHUB_ENVIRONMENT ?= dockerhub
+```
+
+This is useful if you want approvals or environment-level secrets for Docker publishing.
+
 ### 5. Make sure release tags use the expected format
 
-The release and PyPI workflows trigger on tags that match:
+The release, PyPI, and Docker Hub workflows trigger on tags that match:
 
 ```text
 v*
@@ -1162,7 +1277,8 @@ my-new-project/
 │   └── workflows/
 │       ├── ci.yml
 │       ├── release.yml
-│       └── publish-pypi.yml
+│       ├── publish-pypi.yml
+│       └── publish-dockerhub.yml
 ├── myapp/
 │   ├── __init__.py
 │   └── cli.py
@@ -1371,6 +1487,37 @@ Then create the GitHub secret:
 PYPI_API_TOKEN
 ```
 
+### Scenario 5: Publish Docker image to Docker Hub
+
+Set these values in `project.mk`:
+
+```makefile
+CI_ENABLE_DOCKERHUB_PUBLISH ?= 1
+CI_DOCKERHUB_ENVIRONMENT ?= dockerhub
+CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
+CI_DOCKERFILE ?= Dockerfile
+CI_DOCKER_BUILD_CONTEXT ?= .
+CI_DOCKER_PUSH_LATEST ?= 1
+```
+
+Create these GitHub secrets:
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+```
+
+When you push a release tag (for example `v1.2.3`), the workflow publishes:
+
+- `your-dockerhub-user/your-image:v1.2.3`
+- `your-dockerhub-user/your-image:latest` (only if `CI_DOCKER_PUSH_LATEST=1`)
+
+Consumers can pull your published image with:
+
+```bash
+docker pull your-dockerhub-user/your-image:v1.2.3
+```
+
 ---
 
 ## Recommended First Commands
@@ -1449,6 +1596,16 @@ Check all of these:
 
 - `CI_ENABLE_PYPI_PUBLISH ?= 1`
 - repository secret `PYPI_API_TOKEN` exists
+- the workflow ran on a `v*` tag or manually
+
+### Docker Hub workflow does not publish
+
+Check all of these:
+
+- `CI_ENABLE_DOCKERHUB_PUBLISH ?= 1`
+- `CI_DOCKERHUB_IMAGE` points to a Docker Hub repository you own or can push to
+- `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` exist in repository/environment secrets
+- `CI_DOCKERFILE` points to a real Dockerfile
 - the workflow ran on a `v*` tag or manually
 
 ### I want to disable some release builds
