@@ -58,7 +58,7 @@ Instead of rebuilding the same tooling every time, you start with:
 
 - dependency management with `uv`
 - quality checks with `ruff`
-- type checking with `mypy`
+- type checking with `ty`
 - testing with `pytest`
 - coverage with `pytest-cov`
 - documentation generation with `pdoc`
@@ -526,7 +526,7 @@ The `Makefile` uses tools that live in your Python environment, so `pyproject.to
 The template already defines a `dev` dependency group with:
 
 - `ruff`
-- `mypy`
+- `ty`
 - `pytest`
 - `pytest-cov`
 - `pdoc`
@@ -563,7 +563,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "mypy",
+    "ty",
     "pdoc",
     "pytest",
     "pytest-cov",
@@ -820,7 +820,7 @@ These targets prepare your local environment.
 | `make lint-fix` | Auto-fix Ruff issues when possible |
 | `make format` | Format Python files |
 | `make format-check` | Check formatting without changing files |
-| `make type-check` | Run mypy |
+| `make type-check` | Run ty |
 | `make test` | Run tests |
 | `make test-cov` | Run tests with coverage |
 | `make qa` | Run the main quality pipeline |
@@ -1334,7 +1334,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "mypy",
+    "ty",
     "pdoc",
     "pytest",
     "pytest-cov",

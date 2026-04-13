@@ -305,27 +305,27 @@ gen-inno-iss:
 ## lint                 – Run Ruff linter (check only, no changes written)
 .PHONY: lint
 lint:
-	uv run ruff check .
+	uv run ruff check --config $(RUFF_CONFIG_FILE) .
 
 ## lint-fix             – Run Ruff linter and auto-fix safe issues
 .PHONY: lint-fix
 lint-fix:
-	uv run ruff check --fix .
+	uv run ruff check --config $(RUFF_CONFIG_FILE) --fix .
 
 ## format               – Format all Python files with Ruff formatter
 .PHONY: format
 format:
-	uv run ruff format .
+	uv run ruff format --config $(RUFF_CONFIG_FILE) .
 
 ## format-check         – Check formatting without making changes (CI-safe)
 .PHONY: format-check
 format-check:
-	uv run ruff format --check .
+	uv run ruff format --config $(RUFF_CONFIG_FILE) --check .
 
-## type-check           – Run static type analysis with mypy
+## type-check           – Run static type analysis with ty
 .PHONY: type-check
 type-check:
-	uv run mypy $(PYTHON_MAIN_PACKAGE)
+	uv run ty check --config-file $(TY_CONFIG_FILE) $(PYTHON_MAIN_PACKAGE)
 
 ## test                 – Run the full test suite with pytest
 .PHONY: test
@@ -473,12 +473,12 @@ clean-build:
 	- rm -rf $(PYTHON_MAIN_PACKAGE).egg-info
 	- rm -f *.spec
 
-## clean-cache          – Remove Python bytecode, pytest, mypy, and ruff caches
+## clean-cache          – Remove Python bytecode, pytest, ty, and ruff caches
 .PHONY: clean-cache
 clean-cache:
 	- rm -rf __pycache__
 	- rm -rf .pytest_cache
-	- rm -rf .mypy_cache
+	- rm -rf .ty_cache
 	- rm -rf .ruff_cache
 	- find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
 

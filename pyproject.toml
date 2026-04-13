@@ -15,7 +15,7 @@ packages = ["myapp"]
 
 [dependency-groups]
 dev = [
-	"mypy",
+	"ty",
 	"pdoc",
 	"pytest",
 	"pytest-cov",
