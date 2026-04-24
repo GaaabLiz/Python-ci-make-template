@@ -111,6 +111,7 @@ help:
 install:
 	uv sync
 	uv sync --all-extras
+	uv sync --all-groups
 
 ## install-all          – Install configured Python, sync all groups, and run uv build
 .PHONY: install-all
