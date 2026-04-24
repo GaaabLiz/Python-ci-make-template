@@ -109,15 +109,13 @@ help:
 ## install              – Sync all dependency groups and extras via uv
 .PHONY: install
 install:
-	uv sync
-	uv sync --all-extras
-	uv sync --all-groups
+	uv sync --all-extras --all-groups
 
 ## install-all          – Install configured Python, sync all groups, and run uv build
 .PHONY: install-all
 install-all:
 	uv python install $(CI_PYTHON_VERSION)
-	uv sync --all-groups
+	uv sync --all-extras --all-groups
 	uv build
 
 ## install-dev          – Sync only the dev dependency group
