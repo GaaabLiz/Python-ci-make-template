@@ -616,6 +616,9 @@ ci-export-config:
 	@echo "pypi_environment=$(CI_PYPI_ENVIRONMENT)" >> "$$GITHUB_OUTPUT"
 	@echo "enable_dockerhub_publish=$(CI_ENABLE_DOCKERHUB_PUBLISH)" >> "$$GITHUB_OUTPUT"
 	@echo "dockerhub_environment=$(CI_DOCKERHUB_ENVIRONMENT)" >> "$$GITHUB_OUTPUT"
+	@echo "enable_chocolatey_publish=$(CI_ENABLE_CHOCOLATEY_PUBLISH)" >> "$$GITHUB_OUTPUT"
+	@echo "chocolatey_environment=$(CI_CHOCOLATEY_ENVIRONMENT)" >> "$$GITHUB_OUTPUT"
+	@echo "chocolatey_source_url=$(CI_CHOCOLATEY_SOURCE_URL)" >> "$$GITHUB_OUTPUT"
 	@echo "dockerhub_image=$(CI_DOCKERHUB_IMAGE)" >> "$$GITHUB_OUTPUT"
 	@echo "dockerfile=$(CI_DOCKERFILE)" >> "$$GITHUB_OUTPUT"
 	@echo "docker_build_context=$(CI_DOCKER_BUILD_CONTEXT)" >> "$$GITHUB_OUTPUT"
@@ -740,6 +743,62 @@ ci-publish-dockerhub: ci-docker-build
 		docker tag "$(CI_DOCKERHUB_IMAGE):$$DOCKER_IMAGE_TAG" "$(CI_DOCKERHUB_IMAGE):latest"; \
 		docker push "$(CI_DOCKERHUB_IMAGE):latest"; \
 	fi
+
+## ci-build-chocolatey-assets – Build Windows artefacts consumed by the Chocolatey package
+.PHONY: ci-build-chocolatey-assets
+ci-build-chocolatey-assets:
+	$(MAKE) --no-print-directory ci-build-release-assets
+
+## ci-pack-chocolatey     – Generate nuspec/install script and build a .nupkg in dist/chocolatey/
+.PHONY: ci-pack-chocolatey
+ci-pack-chocolatey:
+	@VERSION=$$(uv version --short); \
+	INSTALLER_URL=$$(uv run python -c 'import sys; print(sys.argv[1].replace("{version}", sys.argv[2]))' "$(CI_CHOCOLATEY_INSTALLER_URL)" "$$VERSION"); \
+	mkdir -p .chocolatey/tools dist/chocolatey; \
+	printf '%s\n' \
+		'<?xml version="1.0" encoding="utf-8"?>' \
+		'<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">' \
+		'  <metadata>' \
+		'    <id>$(CI_CHOCOLATEY_PACKAGE_ID)</id>' \
+		'    <version>'"$$VERSION"'</version>' \
+		'    <title>$(CI_CHOCOLATEY_PACKAGE_TITLE)</title>' \
+		'    <authors>$(CI_CHOCOLATEY_AUTHORS)</authors>' \
+		'    <projectUrl>$(CI_CHOCOLATEY_PROJECT_URL)</projectUrl>' \
+		'    <licenseUrl>$(CI_CHOCOLATEY_LICENSE_URL)</licenseUrl>' \
+		'    <tags>$(CI_CHOCOLATEY_TAGS)</tags>' \
+		'    <summary>$(CI_CHOCOLATEY_SUMMARY)</summary>' \
+		'    <description>$(CI_CHOCOLATEY_DESCRIPTION)</description>' \
+		'  </metadata>' \
+		'  <files>' \
+		'    <file src="tools\\**" target="tools" />' \
+		'  </files>' \
+		'</package>' > .chocolatey/$(CI_CHOCOLATEY_PACKAGE_ID).nuspec; \
+	printf '%s\n' \
+		'$$ErrorActionPreference = "Stop"' \
+		'$$packageArgs = @{' \
+		'  packageName    = "$(CI_CHOCOLATEY_PACKAGE_ID)"' \
+		'  fileType       = "EXE"' \
+		'  url64bit       = "'"$$INSTALLER_URL"'"' \
+		'  silentArgs     = "$(CI_CHOCOLATEY_SILENT_ARGS)"' \
+		'  validExitCodes = @($(CI_CHOCOLATEY_VALID_EXIT_CODES))' \
+		'}' \
+		'Install-ChocolateyPackage @packageArgs' > .chocolatey/tools/chocolateyinstall.ps1; \
+	choco pack .chocolatey/$(CI_CHOCOLATEY_PACKAGE_ID).nuspec --outputdirectory dist/chocolatey --yes --limit-output
+
+## ci-publish-chocolatey – Push generated .nupkg to Chocolatey source (requires CHOCOLATEY_API_KEY)
+.PHONY: ci-publish-chocolatey
+ci-publish-chocolatey:
+	@if [ -z "$$CHOCOLATEY_API_KEY" ]; then \
+		echo "Error: CHOCOLATEY_API_KEY is not set."; \
+		exit 1; \
+	fi
+	@PACKAGE_FILE=$$(ls -1 dist/chocolatey/*.nupkg 2>/dev/null | grep -v '\\.symbols\\.nupkg$$' | head -n 1); \
+	if [ -z "$$PACKAGE_FILE" ]; then \
+		echo "Error: no .nupkg file found in dist/chocolatey. Run make ci-pack-chocolatey first."; \
+		exit 1; \
+	fi; \
+	echo "Publishing $$PACKAGE_FILE to $(CI_CHOCOLATEY_SOURCE_URL)"; \
+	choco push "$$PACKAGE_FILE" --source "$(CI_CHOCOLATEY_SOURCE_URL)" --api-key "$$CHOCOLATEY_API_KEY" --yes --limit-output
 
 ## ci-release-branch      – Print RELEASE_CHANGELOG_TARGET_BRANCH
 .PHONY: ci-release-branch

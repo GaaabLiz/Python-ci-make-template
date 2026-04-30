@@ -130,6 +130,34 @@ CI_DOCKER_BUILD_CONTEXT ?= .
 # Also push the `latest` tag during release publication (1=yes, 0=no).
 CI_DOCKER_PUSH_LATEST ?= 1
 
+# Enable/disable automated publication to Chocolatey on version tags.
+# Keep this at 0 until CHOCOLATEY_API_KEY is configured in GitHub secrets.
+CI_ENABLE_CHOCOLATEY_PUBLISH ?= 0
+
+# GitHub Actions environment name used by the Chocolatey publish workflow.
+CI_CHOCOLATEY_ENVIRONMENT ?= chocolatey
+
+# Chocolatey package metadata.
+CI_CHOCOLATEY_PACKAGE_ID ?= myapp
+CI_CHOCOLATEY_PACKAGE_TITLE ?= My App
+CI_CHOCOLATEY_AUTHORS ?= Your Name
+CI_CHOCOLATEY_PROJECT_URL ?= https://github.com/your-org/your-repo
+CI_CHOCOLATEY_LICENSE_URL ?= https://github.com/your-org/your-repo/blob/main/LICENSE
+CI_CHOCOLATEY_TAGS ?= python cli
+
+# Human-readable metadata shown on Chocolatey package page.
+CI_CHOCOLATEY_SUMMARY ?= Windows package for $(INNO_APP_NAME)
+CI_CHOCOLATEY_DESCRIPTION ?= $(INNO_APP_NAME) packaged from the GitHub release artifacts.
+
+# Installer artifact and install-script settings.
+# CI_CHOCOLATEY_INSTALLER_URL supports the {version} placeholder.
+CI_CHOCOLATEY_INSTALLER_URL ?= https://github.com/your-org/your-repo/releases/download/v{version}/$(INNO_OUTPUT_BASE_FILENAME).exe
+CI_CHOCOLATEY_SILENT_ARGS ?= /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+CI_CHOCOLATEY_VALID_EXIT_CODES ?= 0 3010 1641
+
+# Chocolatey push endpoint. Default is the community feed.
+CI_CHOCOLATEY_SOURCE_URL ?= https://push.chocolatey.org/
+
 
 # ==============================================================================
 #  4. WINDOWS INSTALLER SETTINGS  (only relevant when ENABLE_WINDOWS_INSTALLER=1)
