@@ -159,52 +159,7 @@ install-inno:
 #  requires_python, and authors as module-level constants.
 .PHONY: gen-project-py
 gen-project-py:
-	@printf '%s\n' \
-		'from pathlib import Path' \
-		'import sys' \
-		'import tomllib' \
-		'pyproject_path = Path("$(FILE_PROJECT_TOML)")' \
-		'py_file = Path("$(FILE_PROJECT_PY_GENERATED)")' \
-		'try:' \
-		'    if not pyproject_path.exists():' \
-		'        raise FileNotFoundError(f"File {pyproject_path} does not exist.")' \
-		'    with pyproject_path.open("rb") as f:' \
-		'        data = tomllib.load(f)' \
-		'    project = data.get("project", {})' \
-		'    raw_authors = project.get("authors", [])' \
-		'    authors = []' \
-		'    for entry in raw_authors:' \
-		'        name = entry.get("name")' \
-		'        email = entry.get("email")' \
-		'        if name or email:' \
-		'            authors.append((name, email))' \
-		'    info = {' \
-		'        "name": project.get("name"),' \
-		'        "version": project.get("version"),' \
-		'        "description": project.get("description"),' \
-		'        "requires_python": project.get("requires-python"),' \
-		'        "authors": authors,' \
-		'    }' \
-		'    authors_repr = "[" + ", ".join(' \
-		'        f"({repr(name)}, {repr(email)})"' \
-		'        for name, email in info["authors"]' \
-		'    ) + "]"' \
-		'    lines = [' \
-		'        "# fmt: off",' \
-		'        "name = " + repr(info["name"]),' \
-		'        "version = " + repr(info["version"]),' \
-		'        "description = " + repr(info["description"]),' \
-		'        "requires_python = " + repr(info["requires_python"]),' \
-		'        "authors = " + authors_repr,' \
-		'        "# fmt: on",' \
-		'    ]' \
-		'    py_file.parent.mkdir(parents=True, exist_ok=True)' \
-		'    with py_file.open("w", encoding="utf-8") as f:' \
-		'        f.write("\n".join(lines) + "\n")' \
-		'    print(f"Generated: {py_file}")' \
-		'except Exception as e:' \
-		'    print(f"Error: {e}", file=sys.stderr)' \
-		'    raise SystemExit(1)' | uv run python -
+	uv run python .mk-scripts/gen-project-py "$(FILE_PROJECT_TOML)" "$(FILE_PROJECT_PY_GENERATED)"
 
 ## gen-logo-icons SVG=<path>  – Convert a .svg file to .ico/.png/.jpg/.icns in all standard sizes
 #
@@ -221,7 +176,7 @@ gen-logo-icons:
 		echo "Usage: make gen-logo-icons SVG=resources/logo.svg"; \
 		exit 1; \
 	fi
-	uv run python scripts/convert_logo.py "$(SVG)"
+	uv run python .mk-scripts/convert_logo.py "$(SVG)"
 
 ## gen-inno-iss         – Generate $(INNO_SETUP_FILE) from project.mk installer variables
 #
