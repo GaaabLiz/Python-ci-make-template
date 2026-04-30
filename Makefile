@@ -206,6 +206,23 @@ gen-project-py:
 		'    print(f"Error: {e}", file=sys.stderr)' \
 		'    raise SystemExit(1)' | uv run python -
 
+## gen-logo-icons SVG=<path>  – Convert a .svg file to .ico/.png/.jpg/.icns in all standard sizes
+#
+#  Requires cairosvg and pillow (both in the dev dependency group).
+#  On macOS make sure cairo is available:   brew install cairo
+#  On Linux:                                sudo apt install libcairo2
+#
+#  Example:
+#      make gen-logo-icons SVG=resources/logo.svg
+.PHONY: gen-logo-icons
+gen-logo-icons:
+	@if [ -z "$(SVG)" ]; then \
+		echo "Error: SVG variable is required."; \
+		echo "Usage: make gen-logo-icons SVG=resources/logo.svg"; \
+		exit 1; \
+	fi
+	uv run python scripts/convert_logo.py "$(SVG)"
+
 ## gen-inno-iss         – Generate $(INNO_SETUP_FILE) from project.mk installer variables
 #
 #  Creates a clean, template-friendly Inno Setup script that packages the
@@ -648,6 +665,7 @@ ci-export-config:
 	@echo "dockerfile=$(CI_DOCKERFILE)" >> "$$GITHUB_OUTPUT"
 	@echo "docker_build_context=$(CI_DOCKER_BUILD_CONTEXT)" >> "$$GITHUB_OUTPUT"
 	@echo "docker_push_latest=$(CI_DOCKER_PUSH_LATEST)" >> "$$GITHUB_OUTPUT"
+	@echo "enable_release_docs=$(CI_ENABLE_RELEASE_DOCS)" >> "$$GITHUB_OUTPUT"
 	@echo "changelog_file=$(CI_CHANGELOG_FILE)" >> "$$GITHUB_OUTPUT"
 	@echo "release_notes_file=$(CI_RELEASE_NOTES_FILE)" >> "$$GITHUB_OUTPUT"
 	@echo "git_cliff_config=$(CI_GIT_CLIFF_CONFIG)" >> "$$GITHUB_OUTPUT"
@@ -682,6 +700,25 @@ ci-commit-changelog:
 		echo "No changes to $(CI_CHANGELOG_FILE)"; \
 	else \
 		git commit -m "chore: update changelog [skip ci]"; \
+		git fetch origin; \
+		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)" || echo "Push failed, continuing..."; \
+	fi
+
+## ci-generate-docs       – Generate project documentation for release automation
+.PHONY: ci-generate-docs
+ci-generate-docs:
+	$(MAKE) --no-print-directory docs
+
+## ci-commit-docs         – Commit and push docs/ updates in a dedicated commit
+.PHONY: ci-commit-docs
+ci-commit-docs:
+	git config user.name "github-actions[bot]"
+	git config user.email "github-actions[bot]@users.noreply.github.com"
+	git add docs/
+	@if git diff --staged --quiet; then \
+		echo "No changes to docs/"; \
+	else \
+		git commit -m "docs: update generated documentation [skip ci]"; \
 		git fetch origin; \
 		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)" || echo "Push failed, continuing..."; \
 	fi
