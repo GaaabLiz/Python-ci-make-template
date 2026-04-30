@@ -86,6 +86,10 @@ CI_PYTHON_VERSION ?= 3.13
 # Set to 0 when CI runners cannot access required external infrastructure.
 CI_RUN_TESTS ?= 1
 
+# Enable/disable docs generation during the release workflow.
+# When enabled, CI runs `make docs` and commits docs/ in a separate commit.
+CI_ENABLE_RELEASE_DOCS ?= 0
+
 # Enable/disable per-platform asset builds in the release workflow.
 # Set to 0 to skip a platform completely.
 CI_BUILD_LINUX ?= 1
