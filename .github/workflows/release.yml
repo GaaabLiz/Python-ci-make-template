@@ -19,6 +19,7 @@ jobs:
       build_linux: ${{ steps.config.outputs.build_linux }}
       build_macos: ${{ steps.config.outputs.build_macos }}
       build_windows: ${{ steps.config.outputs.build_windows }}
+      enable_release_docs: ${{ steps.config.outputs.enable_release_docs }}
       release_artifacts: ${{ steps.config.outputs.release_artifacts }}
       changelog_file: ${{ steps.config.outputs.changelog_file }}
       release_notes_file: ${{ steps.config.outputs.release_notes_file }}
@@ -59,6 +60,14 @@ jobs:
 
       - name: Commit Changelog
         run: make ci-commit-changelog
+
+      - name: Generate Docs
+        if: needs.ci-config.outputs.enable_release_docs == '1'
+        run: make ci-generate-docs
+
+      - name: Commit Docs
+        if: needs.ci-config.outputs.enable_release_docs == '1'
+        run: make ci-commit-docs
 
       - name: Generate Release Notes
         run: make ci-generate-release-notes
