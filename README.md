@@ -629,6 +629,7 @@ CI_BUILD_MACOS ?= 1
 CI_BUILD_WINDOWS ?= 1
 CI_ENABLE_PYPI_PUBLISH ?= 0
 CI_PYPI_ENVIRONMENT ?= pypi
+CI_ENABLE_RELEASE_DOCS ?= 0
 CI_ENABLE_DOCKERHUB_PUBLISH ?= 0
 CI_DOCKERHUB_ENVIRONMENT ?= dockerhub
 CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
@@ -655,6 +656,9 @@ These values control behavior in GitHub Actions.
 
 - `CI_ENABLE_PYPI_PUBLISH`
   Set to `1` only when you want the PyPI workflow to publish.
+
+- `CI_ENABLE_RELEASE_DOCS`
+  Set to `1` to generate `docs/` during `release.yml` and push it in a dedicated commit.
 
 - `CI_PYPI_ENVIRONMENT`
   GitHub Actions environment name used by the PyPI workflow.
@@ -884,6 +888,8 @@ These are mainly for GitHub Actions, but they are still regular Make targets.
 | `make ci-generate-changelog` | Build the changelog file |
 | `make ci-generate-release-notes` | Build release notes file |
 | `make ci-commit-changelog` | Commit and push the changelog |
+| `make ci-generate-docs` | Generate project documentation for release automation |
+| `make ci-commit-docs` | Commit and push generated `docs/` in a separate commit |
 | `make ci-build-release-assets` | Build release assets for the current runner OS |
 | `make ci-publish-pypi` | Publish to PyPI |
 | `make ci-docker-login` | Login to Docker Hub with CI secrets |
