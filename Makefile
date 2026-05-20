@@ -301,12 +301,14 @@ type-check:
 ## test                 – Run the full test suite with pytest
 .PHONY: test
 test:
-	uv run pytest
+	@echo "[test] Running pytest against: $(TESTS_PATH)"
+	uv run pytest $(TESTS_PATH)
 
 ## test-cov             – Run tests with a terminal coverage report
 .PHONY: test-cov
 test-cov:
-	uv run pytest --cov=$(PYTHON_MAIN_PACKAGE) --cov-report=term-missing
+	@echo "[test-cov] Running pytest with coverage against: $(TESTS_PATH)"
+	uv run pytest $(TESTS_PATH) --cov=$(PYTHON_MAIN_PACKAGE) --cov-report=term-missing
 
 ## qa                   – Run all quality gates: lint · format-check · type-check · test
 .PHONY: qa
@@ -330,11 +332,14 @@ qa: lint format-check type-check test
 ## build                – Full build: clean → gen-project-py → uv build
 .PHONY: build
 build: clean gen-project-py build-uv
+	@echo "[build] Build completed for package $(PYTHON_MAIN_PACKAGE)"
 
 ## build-uv             – Build sdist and wheel with uv (no clean or generate step)
 .PHONY: build-uv
 build-uv:
+	@echo "[build-uv] Building sdist and wheel into dist/"
 	uv build
+	@$(MAKE) --no-print-directory ci-list-build-artifacts
 
 ## build-exe            – Build one-folder executables with PyInstaller for each app in APPS_LIST
 #
@@ -346,22 +351,36 @@ build-uv:
 #    <id>_ICNS   macOS icon    (.icns)
 .PHONY: build-exe
 build-exe:
-	$(foreach app,$(APPS_LIST),\
-		uv run pyinstaller --noconfirm --windowed \
-			--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
-			--name=$($(app)_NAME)-$(OS_NAME) \
-			$($(app)_MAIN); \
-	)
+	@if [ -z "$(strip $(APPS_LIST))" ]; then \
+		echo "[build-exe] APPS_LIST is empty -> skipping PyInstaller one-folder builds."; \
+		echo "[build-exe] Set APPS_LIST plus <app>_NAME/<app>_MAIN/<app>_ICO/<app>_ICNS in project.mk to enable executables."; \
+	else \
+		echo "[build-exe] Building PyInstaller apps: $(APPS_LIST)"; \
+		$(foreach app,$(APPS_LIST),\
+			uv run pyinstaller --noconfirm --windowed \
+				--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
+				--name=$($(app)_NAME)-$(OS_NAME) \
+				$($(app)_MAIN); \
+		) \
+		echo "[build-exe] PyInstaller one-folder build completed."; \
+	fi
 
 ## build-exe-onefile    – Build single-file executables with PyInstaller for each app in APPS_LIST
 .PHONY: build-exe-onefile
 build-exe-onefile:
-	$(foreach app,$(APPS_LIST),\
-		uv run pyinstaller --noconfirm --windowed --onefile \
-			--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
-			--name=$($(app)_NAME)-$(OS_NAME) \
-			$($(app)_MAIN); \
-	)
+	@if [ -z "$(strip $(APPS_LIST))" ]; then \
+		echo "[build-exe-onefile] APPS_LIST is empty -> skipping PyInstaller onefile builds."; \
+		echo "[build-exe-onefile] Pure package projects should keep APPS_LIST empty and release dist/* only."; \
+	else \
+		echo "[build-exe-onefile] Building PyInstaller onefile apps: $(APPS_LIST)"; \
+		$(foreach app,$(APPS_LIST),\
+			uv run pyinstaller --noconfirm --windowed --onefile \
+				--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
+				--name=$($(app)_NAME)-$(OS_NAME) \
+				$($(app)_MAIN); \
+		) \
+		echo "[build-exe-onefile] PyInstaller onefile build completed."; \
+	fi
 
 ## build-app            – Full app build: clean → gen-project-py → uv build → build-exe
 .PHONY: build-app
@@ -583,21 +602,46 @@ release-major-tag: release-major tag
 #  Keep all shell logic here so workflow files stay short and generic.
 # ==============================================================================
 
+## ci-log-config          – Print the project settings that drive CI and release automation
+.PHONY: ci-log-config
+ci-log-config:
+	@echo "[ci-log-config] Project configuration summary"
+	@echo "[ci-log-config] PYTHON_MAIN_PACKAGE=$(PYTHON_MAIN_PACKAGE)"
+	@echo "[ci-log-config] TESTS_PATH=$(TESTS_PATH)"
+	@echo "[ci-log-config] CI_RUN_TESTS=$(CI_RUN_TESTS)"
+	@echo "[ci-log-config] CI_PYTHON_VERSION=$(CI_PYTHON_VERSION)"
+	@echo "[ci-log-config] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"
+	@echo "[ci-log-config] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"
+	@echo "[ci-log-config] RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"
+	@echo "[ci-log-config] Hint: leave APPS_LIST empty for package-only projects."
+	@echo "[ci-log-config] Hint: add installer/binary paths to RELEASE_ARTIFACTS when you publish more than dist/*."
+
 ## ci-setup               – Prepare CI environment (install Python via uv + sync all groups)
 .PHONY: ci-setup
 ci-setup:
+	@echo "[ci-setup] Installing Python $(CI_PYTHON_VERSION) via uv"
 	uv python install $(CI_PYTHON_VERSION)
+	@echo "[ci-setup] Syncing dependency groups"
 	uv sync --all-groups
+	@echo "[ci-setup] Tool versions"
+	uv --version
+	uv run python --version
 
-## ci-quality             – Run CI quality gates; skip tests when CI_RUN_TESTS=0
+## ci-quality             – Run CI static quality gates (lint, format-check, type-check)
 .PHONY: ci-quality
 ci-quality:
+	@echo "[ci-quality] Running lint, format-check, and type-check for $(PYTHON_MAIN_PACKAGE)"
+	$(MAKE) --no-print-directory lint format-check type-check
+
+## ci-test                – Run automated tests configured for CI when CI_RUN_TESTS=1
+.PHONY: ci-test
+ci-test:
 	@if [ "$(CI_RUN_TESTS)" = "1" ]; then \
-		echo "CI_RUN_TESTS=1 -> running full qa (including tests)"; \
-		$(MAKE) --no-print-directory qa; \
+		echo "[ci-test] CI_RUN_TESTS=1 -> running tests from $(TESTS_PATH)"; \
+		$(MAKE) --no-print-directory test; \
 	else \
-		echo "CI_RUN_TESTS=0 -> running lint, format-check, and type-check only"; \
-		$(MAKE) --no-print-directory lint format-check type-check; \
+		echo "[ci-test] CI_RUN_TESTS=0 -> skipping automated tests."; \
+		echo "[ci-test] Set CI_RUN_TESTS=1 in project.mk to execute tests in .github/workflows/ci.yml."; \
 	fi
 
 ## ci-export-config       – Export CI configuration values to $GITHUB_OUTPUT
@@ -607,6 +651,7 @@ ci-export-config:
 		echo "Error: GITHUB_OUTPUT is not set."; \
 		exit 1; \
 	fi
+	@echo "[ci-export-config] Exporting CI configuration to $$GITHUB_OUTPUT"
 	@echo "release_branch=$(RELEASE_CHANGELOG_TARGET_BRANCH)" >> "$$GITHUB_OUTPUT"
 	@echo "windows_installer_enabled=$(ENABLE_WINDOWS_INSTALLER)" >> "$$GITHUB_OUTPUT"
 	@echo "build_linux=$(CI_BUILD_LINUX)" >> "$$GITHUB_OUTPUT"
@@ -636,21 +681,25 @@ ci-export-config:
 ## ci-install-git-cliff   – Ensure git-cliff is available in CI
 .PHONY: ci-install-git-cliff
 ci-install-git-cliff:
+	@echo "[ci-install-git-cliff] Installing git-cliff via uv tool"
 	uv tool install git-cliff
 
 ## ci-generate-changelog  – Generate the full changelog file configured in CI_CHANGELOG_FILE
 .PHONY: ci-generate-changelog
 ci-generate-changelog:
+	@echo "[ci-generate-changelog] Writing $(CI_CHANGELOG_FILE) using $(CI_GIT_CLIFF_CONFIG)"
 	uvx git-cliff --config $(CI_GIT_CLIFF_CONFIG) --output $(CI_CHANGELOG_FILE)
 
 ## ci-generate-release-notes – Generate latest release notes into CI_RELEASE_NOTES_FILE
 .PHONY: ci-generate-release-notes
 ci-generate-release-notes:
+	@echo "[ci-generate-release-notes] Writing $(CI_RELEASE_NOTES_FILE)"
 	uvx git-cliff --config $(CI_GIT_CLIFF_CONFIG) --latest --strip header > $(CI_RELEASE_NOTES_FILE)
 
 ## ci-commit-changelog    – Commit and push changelog updates to RELEASE_CHANGELOG_TARGET_BRANCH
 .PHONY: ci-commit-changelog
 ci-commit-changelog:
+	@echo "[ci-commit-changelog] Checking whether $(CI_CHANGELOG_FILE) changed"
 	git config user.name "github-actions[bot]"
 	git config user.email "github-actions[bot]@users.noreply.github.com"
 	git add $(CI_CHANGELOG_FILE)
@@ -665,11 +714,13 @@ ci-commit-changelog:
 ## ci-generate-docs       – Generate project documentation for release automation
 .PHONY: ci-generate-docs
 ci-generate-docs:
+	@echo "[ci-generate-docs] Generating docs/ for $(PYTHON_MAIN_PACKAGE)"
 	$(MAKE) --no-print-directory docs
 
 ## ci-commit-docs         – Commit and push docs/ updates in a dedicated commit
 .PHONY: ci-commit-docs
 ci-commit-docs:
+	@echo "[ci-commit-docs] Checking whether docs/ changed"
 	git config user.name "github-actions[bot]"
 	git config user.email "github-actions[bot]@users.noreply.github.com"
 	git add docs/
@@ -681,14 +732,65 @@ ci-commit-docs:
 		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)" || echo "Push failed, continuing..."; \
 	fi
 
-## ci-build-release-assets – Build release assets for the current runner OS
+## ci-build-release-assets – Build release assets for the current runner OS with verbose diagnostics
 .PHONY: ci-build-release-assets
 ci-build-release-assets:
+	@echo "[ci-build-release-assets] Runner OS=$(OS_NAME)"
+	@echo "[ci-build-release-assets] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"
+	@echo "[ci-build-release-assets] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"
 	@if [ "$(OS_NAME)" = "windows" ] && [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
+		echo "[ci-build-release-assets] Building Windows installer because ENABLE_WINDOWS_INSTALLER=1"; \
 		$(MAKE) --no-print-directory install-inno; \
 		$(MAKE) --no-print-directory build-installer; \
+	elif [ -n "$(strip $(APPS_LIST))" ]; then \
+		echo "[ci-build-release-assets] APPS_LIST is set -> building package plus onefile executables"; \
+		$(MAKE) --no-print-directory build-app-onefile; \
 	else \
-		$(MAKE) --no-print-directory build-exe-onefile; \
+		echo "[ci-build-release-assets] APPS_LIST is empty -> building package only so dist/* exists for releases"; \
+		$(MAKE) --no-print-directory build; \
+	fi
+	@$(MAKE) --no-print-directory ci-list-build-artifacts
+
+## ci-list-build-artifacts – Print the generated files used by CI and release jobs
+.PHONY: ci-list-build-artifacts
+ci-list-build-artifacts:
+	@echo "[ci-list-build-artifacts] RELEASE_ARTIFACTS patterns:"
+	@$(MAKE) --no-print-directory ci-release-artifacts | while IFS= read -r pattern; do \
+		echo "[ci-list-build-artifacts]   $$pattern"; \
+	done
+	@echo "[ci-list-build-artifacts] dist/ contents:"
+	@if [ -d dist ]; then \
+		find dist -type f | sort; \
+	else \
+		echo "[ci-list-build-artifacts]   dist/ does not exist"; \
+	fi
+	@echo "[ci-list-build-artifacts] Output/ contents:"
+	@if [ -d Output ]; then \
+		find Output -type f | sort; \
+	else \
+		echo "[ci-list-build-artifacts]   Output/ does not exist"; \
+	fi
+
+## ci-verify-release-artifacts – Fail early when RELEASE_ARTIFACTS does not match generated files
+.PHONY: ci-verify-release-artifacts
+ci-verify-release-artifacts:
+	@matched=0; \
+	echo "[ci-verify-release-artifacts] Checking RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"; \
+	for pattern in $(RELEASE_ARTIFACTS); do \
+		echo "[ci-verify-release-artifacts] Pattern: $$pattern"; \
+		for file in $$pattern; do \
+			if [ -e "$$file" ]; then \
+				echo "[ci-verify-release-artifacts]   matched: $$file"; \
+				matched=1; \
+			fi; \
+		done; \
+	done; \
+	if [ "$$matched" -ne 1 ]; then \
+		echo "[ci-verify-release-artifacts] Error: no generated files matched RELEASE_ARTIFACTS."; \
+		echo "[ci-verify-release-artifacts] Hint: package-only projects need make build to populate dist/."; \
+		echo "[ci-verify-release-artifacts] Hint: executable projects must set APPS_LIST and companion *_NAME/*_MAIN/*_ICO/*_ICNS variables in project.mk."; \
+		echo "[ci-verify-release-artifacts] Hint: installer projects usually need Output/*.exe added to RELEASE_ARTIFACTS."; \
+		exit 1; \
 	fi
 
 ## ci-publish-pypi        – Publish package artifacts to PyPI (requires UV_PUBLISH_TOKEN)
