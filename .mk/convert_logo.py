@@ -24,23 +24,24 @@ from pathlib import Path
 
 # ── Sizes ─────────────────────────────────────────────────────────────────────
 
-PNG_SIZES  = [16, 32, 48, 64, 128, 256, 512, 1024]
-JPG_SIZES  = [64, 128, 256, 512, 1024]
-ICO_SIZES  = [16, 24, 32, 48, 64, 128, 256]
+PNG_SIZES = [16, 32, 48, 64, 128, 256, 512, 1024]
+JPG_SIZES = [64, 128, 256, 512, 1024]
+ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
 ICNS_SIZES = [16, 32, 64, 128, 256, 512, 1024]
 
 # Apple ICNS OSType codes per pixel size (1x variants – PNG-compressed entries)
 ICNS_TYPES: dict[int, bytes] = {
-    16:   b"icp4",
-    32:   b"icp5",
-    64:   b"icp6",
-    128:  b"ic07",
-    256:  b"ic08",
-    512:  b"ic09",
+    16: b"icp4",
+    32: b"icp5",
+    64: b"icp6",
+    128: b"ic07",
+    256: b"ic08",
+    512: b"ic09",
     1024: b"ic10",
 }
 
 # ── SVG renderer (skia-python) ────────────────────────────────────────────────
+
 
 def _render_svg(svg_path: Path, size: int) -> bytes:
     """
@@ -50,8 +51,8 @@ def _render_svg(svg_path: Path, size: int) -> bytes:
     import skia  # type: ignore[import-untyped]
 
     svg_bytes = svg_path.read_bytes()
-    stream    = skia.MemoryStream(svg_bytes)
-    svg_dom   = skia.SVGDOM.MakeFromStream(stream)
+    stream = skia.MemoryStream(svg_bytes)
+    svg_dom = skia.SVGDOM.MakeFromStream(stream)
     if svg_dom is None:
         raise RuntimeError(f"Skia could not parse SVG: {svg_path}")
 
@@ -61,21 +62,24 @@ def _render_svg(svg_path: Path, size: int) -> bytes:
         svg_dom.setContainerSize(skia.Size.Make(size, size))
         svg_dom.render(canvas)
 
-    image   = surface.makeImageSnapshot()
+    image = surface.makeImageSnapshot()
     png_data = image.encodeToData()
     return bytes(png_data)
 
 
 # ── Image helpers ─────────────────────────────────────────────────────────────
 
+
 def _open_rgba(png_bytes: bytes):
     """Open raw PNG bytes as a PIL RGBA Image."""
     from PIL import Image  # type: ignore[import-untyped]
+
     return Image.open(io.BytesIO(png_bytes)).convert("RGBA")
 
 
 def _resize(base_img, size: int):
     from PIL import Image  # type: ignore[import-untyped]
+
     return base_img.resize((size, size), Image.LANCZOS)
 
 
@@ -86,6 +90,7 @@ def _to_png_bytes(img) -> bytes:
 
 
 # ── ICNS builder ──────────────────────────────────────────────────────────────
+
 
 def _build_icns(png_map: dict[int, bytes]) -> bytes:
     """
@@ -104,12 +109,13 @@ def _build_icns(png_map: dict[int, bytes]) -> bytes:
         ostype = ICNS_TYPES.get(size)
         if ostype is None:
             continue
-        data  = png_map[size]
+        data = png_map[size]
         body += ostype + struct.pack(">I", 8 + len(data)) + data
     return b"icns" + struct.pack(">I", 8 + len(body)) + body
 
 
 # ── Main conversion ───────────────────────────────────────────────────────────
+
 
 def convert(svg_path: Path) -> None:
     if not svg_path.exists():
@@ -120,7 +126,7 @@ def convert(svg_path: Path) -> None:
         sys.exit(1)
 
     out_dir = svg_path.parent
-    stem    = svg_path.stem
+    stem = svg_path.stem
 
     print(f"Source : {svg_path}")
     print(f"Output : {out_dir}/")
@@ -137,7 +143,7 @@ def convert(svg_path: Path) -> None:
     # ── PNG ──────────────────────────────────────────────────────────────────
     print("PNG files:")
     for size in PNG_SIZES:
-        img      = _resize(base_img, size)
+        img = _resize(base_img, size)
         out_path = out_dir / f"{stem}-{size}x{size}.png"
         img.save(out_path, format="PNG", optimize=True)
         print(f"  {out_path}")
@@ -147,8 +153,8 @@ def convert(svg_path: Path) -> None:
     print("JPG files:")
     for size in JPG_SIZES:
         rgba = _resize(base_img, size)
-        bg   = _Image.new("RGB", (size, size), (255, 255, 255))
-        bg.paste(rgba, mask=rgba.split()[3])        # composite over white bg
+        bg = _Image.new("RGB", (size, size), (255, 255, 255))
+        bg.paste(rgba, mask=rgba.split()[3])  # composite over white bg
         out_path = out_dir / f"{stem}-{size}x{size}.jpg"
         bg.save(out_path, format="JPEG", quality=95, optimize=True)
         print(f"  {out_path}")
@@ -157,7 +163,7 @@ def convert(svg_path: Path) -> None:
     # ── ICO ───────────────────────────────────────────────────────────────────
     print("ICO file:")
     ico_images = [_resize(base_img, s) for s in ICO_SIZES]
-    ico_path   = out_dir / f"{stem}.ico"
+    ico_path = out_dir / f"{stem}.ico"
     ico_images[0].save(
         ico_path,
         format="ICO",
@@ -170,7 +176,7 @@ def convert(svg_path: Path) -> None:
     # ── ICNS ─────────────────────────────────────────────────────────────────
     print("ICNS file:")
     icns_png_map = {s: _to_png_bytes(_resize(base_img, s)) for s in ICNS_SIZES}
-    icns_path    = out_dir / f"{stem}.icns"
+    icns_path = out_dir / f"{stem}.icns"
     icns_path.write_bytes(_build_icns(icns_png_map))
     print(f"  {icns_path}")
     print()
