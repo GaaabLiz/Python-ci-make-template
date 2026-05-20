@@ -152,14 +152,14 @@ install-inno:
 #  Qt resource generation lives in qt.mk (include it from project.mk if needed).
 # ==============================================================================
 
-## gen-project-py       – Generate $(FILE_PROJECT_PY_GENERATED) from pyproject.toml
+## gen-project-module   – Generate $(FILE_PROJECT_PY_GENERATED) from pyproject.toml
 #
 #  Reads the [project] table from pyproject.toml and writes a plain Python
 #  module (zero external dependencies) that exposes name, version, description,
 #  requires_python, and authors as module-level constants.
-.PHONY: gen-project-py
-gen-project-py:
-	uv run python .mk/gen-project-py "$(FILE_PROJECT_TOML)" "$(FILE_PROJECT_PY_GENERATED)"
+.PHONY: gen-project-module
+gen-project-module:
+	uv run python .mk/scripts.py gen-project-module "$(FILE_PROJECT_TOML)" "$(FILE_PROJECT_PY_GENERATED)"
 
 ## gen-logo-icons SVG=<path>  – Convert a .svg file to .ico/.png/.jpg/.icns in all standard sizes
 #
@@ -176,7 +176,7 @@ gen-logo-icons:
 		echo "Usage: make gen-logo-icons SVG=resources/logo.svg"; \
 		exit 1; \
 	fi
-	uv run python .mk/convert_logo.py "$(SVG)"
+	uv run python .mk/scripts.py convert-logo "$(SVG)"
 
 ## gen-inno-iss         – Generate $(INNO_SETUP_FILE) from project.mk installer variables
 #
@@ -329,9 +329,9 @@ qa: lint format-check type-check test
 #  PyInstaller targets require `install-pyinstaller` to have been run first.
 # ==============================================================================
 
-## build                – Full build: clean → gen-project-py → uv build
+## build                – Full build: clean → gen-project-module → uv build
 .PHONY: build
-build: clean gen-project-py build-uv
+build: clean gen-project-module build-uv
 	@echo "[build] Build completed for package $(PYTHON_MAIN_PACKAGE)"
 
 ## build-uv             – Build sdist and wheel with uv (no clean or generate step)
@@ -382,13 +382,13 @@ build-exe-onefile:
 		echo "[build-exe-onefile] PyInstaller onefile build completed."; \
 	fi
 
-## build-app            – Full app build: clean → gen-project-py → uv build → build-exe
+## build-app            – Full app build: clean → gen-project-module → uv build → build-exe
 .PHONY: build-app
-build-app: clean gen-project-py build-uv build-exe
+build-app: clean gen-project-module build-uv build-exe
 
 ## build-app-onefile    – Full app build using the --onefile PyInstaller mode
 .PHONY: build-app-onefile
-build-app-onefile: clean gen-project-py build-uv build-exe-onefile
+build-app-onefile: clean gen-project-module build-uv build-exe-onefile
 
 ## installer            – Run Inno Setup to produce the Windows installer (Windows only)
 .PHONY: installer
@@ -544,24 +544,24 @@ define _release_impl
 	git push
 endef
 
-## release-patch-beta   – bump-patch-beta + gen-project-py + commit & push
+## release-patch-beta   – bump-patch-beta + gen-project-module + commit & push
 .PHONY: release-patch-beta
-release-patch-beta: bump-patch-beta gen-project-py
+release-patch-beta: bump-patch-beta gen-project-module
 	$(call _release_impl)
 
-## release-patch        – bump-patch + gen-project-py + commit & push
+## release-patch        – bump-patch + gen-project-module + commit & push
 .PHONY: release-patch
-release-patch: bump-patch gen-project-py
+release-patch: bump-patch gen-project-module
 	$(call _release_impl)
 
-## release-minor        – bump-minor + gen-project-py + commit & push
+## release-minor        – bump-minor + gen-project-module + commit & push
 .PHONY: release-minor
-release-minor: bump-minor gen-project-py
+release-minor: bump-minor gen-project-module
 	$(call _release_impl)
 
-## release-major        – bump-major + gen-project-py + commit & push
+## release-major        – bump-major + gen-project-module + commit & push
 .PHONY: release-major
-release-major: bump-major gen-project-py
+release-major: bump-major gen-project-module
 	$(call _release_impl)
 
 ## tag                  – Pull latest, create a v-prefixed git tag from uv version, and push

@@ -54,7 +54,7 @@ FILE_PROJECT_TOML ?= pyproject.toml
 
 # Destination path for the auto-generated Python module that mirrors the
 # pyproject.toml metadata (name, version, authors, …) as Python constants.
-# The gen-project-py target writes to this path at build time.
+# The gen-project-module target writes to this path at build time.
 FILE_PROJECT_PY_GENERATED ?= $(PYTHON_MAIN_PACKAGE)/project.py
 
 
