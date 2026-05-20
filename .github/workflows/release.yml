@@ -28,6 +28,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Print CI Configuration
+        run: make ci-log-config
+
       - name: Export Config To GitHub Output
         id: config
         run: make ci-export-config
@@ -51,6 +54,9 @@ jobs:
 
       - name: Setup CI Environment
         run: make ci-setup
+
+      - name: Print CI Configuration
+        run: make ci-log-config
 
       - name: Install git-cliff
         run: make ci-install-git-cliff
@@ -98,8 +104,14 @@ jobs:
       - name: Setup CI Environment
         run: make ci-setup
 
+      - name: Print CI Configuration
+        run: make ci-log-config
+
       - name: Build Release Assets
         run: make ci-build-release-assets
+
+      - name: Verify Release Artifacts
+        run: make ci-verify-release-artifacts
 
       - name: Upload Artifacts
         uses: softprops/action-gh-release@v2
@@ -127,8 +139,14 @@ jobs:
       - name: Setup CI Environment
         run: make ci-setup
 
+      - name: Print CI Configuration
+        run: make ci-log-config
+
       - name: Build Release Assets
         run: make ci-build-release-assets
+
+      - name: Verify Release Artifacts
+        run: make ci-verify-release-artifacts
 
       - name: Upload Artifacts
         uses: softprops/action-gh-release@v2
@@ -159,8 +177,14 @@ jobs:
       - name: Setup CI Environment
         run: make ci-setup
 
+      - name: Print CI Configuration
+        run: make ci-log-config
+
       - name: Build Release Assets
         run: make ci-build-release-assets
+
+      - name: Verify Release Artifacts
+        run: make ci-verify-release-artifacts
 
       - name: Upload Artifacts
         uses: softprops/action-gh-release@v2
