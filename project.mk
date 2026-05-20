@@ -77,12 +77,23 @@ ENABLE_WINDOWS_INSTALLER ?= 0
 #   dist/*                                          – wheel + sdist only
 #   dist/* Output/*.exe                             – wheel + sdist + installer
 #   $(foreach a,$(APPS_LIST),dist/$($(a)_NAME)-*)  – per-app wheel globs
+# Keep this aligned with the files produced by your chosen build mode.
+# If your project only ships a Python package, the default dist/* is enough.
+# If you also ship installers or extra binaries, add those paths explicitly.
 RELEASE_ARTIFACTS ?= dist/*
+
+# Directory (or pytest arguments) used by make test, make test-cov, and CI.
+# Examples:
+#   tests
+#   tests/unit
+#   tests/unit tests/integration
+TESTS_PATH ?= tests
 
 # Python version used by CI jobs via uv-managed environments.
 CI_PYTHON_VERSION ?= 3.13
 
-# Enable/disable test execution in the CI workflow quality step.
+# Enable/disable automated test execution in .github/workflows/ci.yml.
+# The workflow always calls `make ci-test`; when this is 0 the step logs a skip.
 # Set to 0 when CI runners cannot access required external infrastructure.
 CI_RUN_TESTS ?= 1
 
@@ -217,7 +228,8 @@ INNO_SOLID_COMPRESSION ?= yes
 # Space-separated list of logical application identifiers to build.
 # For each entry <id> you MUST define the four companion variables below.
 #
-# Leave empty to skip all PyInstaller targets.
+# Leave empty for pure wheel/sdist projects.
+# Set it only when you want CI/release jobs to build PyInstaller executables too.
 APPS_LIST ?=
 
 # ── Template – copy and fill in one block per entry in APPS_LIST ──────────────
