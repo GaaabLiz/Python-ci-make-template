@@ -1,0 +1,70 @@
+# Configuration
+
+Most projects only need to edit `pyproject.toml` and `project.mk`.
+
+## `pyproject.toml`
+
+Set at least:
+
+- project name
+- project version
+- description
+- `requires-python`
+- runtime dependencies
+- development dependency groups if your project needs extra tools
+
+The template uses `uv build` with Hatchling as the build backend by default.
+
+## `project.mk`
+
+### Core project identity
+
+- `PYTHON_MAIN_PACKAGE`: importable package directory
+- `FILE_PROJECT_TOML`: normally `pyproject.toml`
+- `FILE_PROJECT_PY_GENERATED`: generated Python module with project metadata
+
+### Test configuration
+
+- `TESTS_PATH`: directory or pytest arguments used by `make test`, `make test-cov`, and CI
+- `CI_RUN_TESTS`: `1` to run tests in CI, `0` to log a skip instead
+
+### Release artifact configuration
+
+- `RELEASE_ARTIFACTS`: glob list uploaded to GitHub Releases
+- `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, `CI_BUILD_WINDOWS`: enable per-platform release builds
+- `ENABLE_WINDOWS_INSTALLER`: enable Inno Setup packaging on Windows
+
+If your project is package-only, the default `dist/*` is usually enough.
+
+If your project also publishes installers or extra binaries, add those paths explicitly. Example:
+
+```makefile
+RELEASE_ARTIFACTS ?= dist/* Output/*.exe
+```
+
+### Executable configuration
+
+Set `APPS_LIST` only when you want PyInstaller executables.
+
+For each entry in `APPS_LIST`, define:
+
+- `<app>_NAME`
+- `<app>_MAIN`
+- `<app>_ICO`
+- `<app>_ICNS`
+
+### Release and publication toggles
+
+- `CI_ENABLE_RELEASE_DOCS`
+- `CI_ENABLE_PYPI_PUBLISH`
+- `CI_ENABLE_DOCKERHUB_PUBLISH`
+- `CI_ENABLE_CHOCOLATEY_PUBLISH`
+
+These stay disabled by default until the corresponding secrets and environments are configured.
+
+## Recommended sequence
+
+1. Configure package metadata in `pyproject.toml`
+2. Set package name and test path in `project.mk`
+3. Decide which artifact types your project will produce
+4. Run `make ci-log-config` and confirm the printed values match expectations
