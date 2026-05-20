@@ -28,9 +28,18 @@ jobs:
       - name: Setup CI Environment
         run: make ci-setup
 
-      - name: Run Quality Gates
+      - name: Print CI Configuration
+        run: make ci-log-config
+
+      - name: Run Static Quality Gates
         run: make ci-quality
+
+      - name: Run Automated Tests
+        run: make ci-test
 
       - name: Build Package
         run: make build
+
+      - name: Inspect Build Artifacts
+        run: make ci-list-build-artifacts
 
