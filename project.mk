@@ -169,6 +169,64 @@ CI_CHOCOLATEY_VALID_EXIT_CODES ?= 0 3010 1641
 # Chocolatey push endpoint. Default is the community feed.
 CI_CHOCOLATEY_SOURCE_URL ?= https://push.chocolatey.org/
 
+# Enable/disable automated publication to a Homebrew tap on version tags.
+# Keep this at 0 until HOMEBREW_TAP_TOKEN is configured in GitHub secrets.
+CI_ENABLE_HOMEBREW_PUBLISH ?= 0
+
+# GitHub Actions environment name used by the Homebrew publish workflow.
+CI_HOMEBREW_ENVIRONMENT ?= homebrew
+
+# Homebrew tap repository in the form: <owner>/homebrew-<tap>.
+# You must create this repository on GitHub before enabling publication.
+# Example: your-org/homebrew-tap
+CI_HOMEBREW_TAP_REPO ?= your-org/homebrew-tap
+
+# Formula name as it will appear in the tap (without .rb extension).
+CI_HOMEBREW_FORMULA_NAME ?= myapp
+
+# Homepage URL shown in the formula metadata.
+CI_HOMEBREW_HOMEPAGE ?= https://github.com/your-org/your-repo
+
+# Short description shown by `brew info`.
+CI_HOMEBREW_DESCRIPTION ?= A Python CLI application
+
+# SPDX license identifier for the formula.
+CI_HOMEBREW_LICENSE ?= MIT
+
+# Enable/disable automated publication of WinGet manifests on version tags.
+# Keep this at 0 until WINGET_GITHUB_TOKEN is configured in GitHub secrets.
+CI_ENABLE_WINGET_PUBLISH ?= 0
+
+# GitHub Actions environment name used by the WinGet publish workflow.
+CI_WINGET_ENVIRONMENT ?= winget
+
+# Fork of microsoft/winget-pkgs where the workflow pushes the generated branch.
+# Create this fork manually on GitHub before enabling publication.
+# Example: your-github-user/winget-pkgs
+CI_WINGET_FORK_REPO ?= your-github-user/winget-pkgs
+
+# Unique WinGet identifier in Publisher.Package format.
+CI_WINGET_PACKAGE_IDENTIFIER ?= YourCompany.MyApp
+
+# Metadata shown by `winget show` and in the community repository.
+CI_WINGET_PACKAGE_NAME ?= $(INNO_APP_NAME)
+CI_WINGET_PUBLISHER ?= $(INNO_APP_PUBLISHER)
+CI_WINGET_PACKAGE_LOCALE ?= en-US
+CI_WINGET_SHORT_DESCRIPTION ?= Windows installer for $(INNO_APP_NAME)
+CI_WINGET_LICENSE ?= MIT
+CI_WINGET_LICENSE_URL ?= https://github.com/your-org/your-repo/blob/main/LICENSE
+CI_WINGET_HOMEPAGE ?= https://github.com/your-org/your-repo
+CI_WINGET_TAGS ?= python cli
+
+# Installer manifest settings. CI_WINGET_INSTALLER_URL supports {version}.
+CI_WINGET_INSTALLER_URL ?= https://github.com/your-org/your-repo/releases/download/v{version}/$(INNO_OUTPUT_BASE_FILENAME).exe
+CI_WINGET_INSTALLER_TYPE ?= inno
+CI_WINGET_INSTALLER_ARCHITECTURE ?= x64
+CI_WINGET_INSTALLER_FILE ?= $(INNO_OUTPUT_DIR)/$(INNO_OUTPUT_BASE_FILENAME).exe
+
+# WinGet manifest schema version used for generated YAML files.
+CI_WINGET_MANIFEST_VERSION ?= 1.12.0
+
 
 # ==============================================================================
 #  4. WINDOWS INSTALLER SETTINGS  (only relevant when ENABLE_WINDOWS_INSTALLER=1)

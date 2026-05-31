@@ -51,5 +51,5 @@ The template also supports optional features that you can enable later:
 - PyInstaller executables through `APPS_LIST`
 - Windows installers through Inno Setup variables
 - Release publication through GitHub Releases
-- Optional PyPI, Docker Hub, and Chocolatey publication workflows
+- Optional PyPI, Docker Hub, Chocolatey, Homebrew, and WinGet publication workflows
 - Optional Qt resource compilation through `qt.mk`

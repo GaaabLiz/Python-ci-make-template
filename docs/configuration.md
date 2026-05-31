@@ -57,8 +57,10 @@ For each entry in `APPS_LIST`, define:
 
 - `CI_ENABLE_RELEASE_DOCS`
 - `CI_ENABLE_PYPI_PUBLISH`
-- `CI_ENABLE_DOCKERHUB_PUBLISH`
-- `CI_ENABLE_CHOCOLATEY_PUBLISH`
+- `CI_ENABLE_DOCKERHUB_PUBLISH` — see [publishing-docker.md](publishing-docker.md)
+- `CI_ENABLE_CHOCOLATEY_PUBLISH` — see [publishing-chocolatey.md](publishing-chocolatey.md)
+- `CI_ENABLE_HOMEBREW_PUBLISH` — see [publishing-homebrew.md](publishing-homebrew.md)
+- `CI_ENABLE_WINGET_PUBLISH` — see [publishing-winget.md](publishing-winget.md)
 
 These stay disabled by default until the corresponding secrets and environments are configured.
 

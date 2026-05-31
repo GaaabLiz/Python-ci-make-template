@@ -37,14 +37,17 @@ The release workflow performs:
 - `CI_BUILD_MACOS`
 - `CI_BUILD_WINDOWS`
 - `CI_ENABLE_RELEASE_DOCS`
+- `CI_ENABLE_WINGET_PUBLISH`
 
 ## Publish workflows
 
 The repository also includes optional workflows for:
 
-- PyPI publication
-- Docker Hub publication
-- Chocolatey publication
+- PyPI publication — see `publish-pypi.yml`
+- Docker Hub publication — see [publishing-docker.md](publishing-docker.md)
+- Chocolatey publication — see [publishing-chocolatey.md](publishing-chocolatey.md)
+- Homebrew publication — see [publishing-homebrew.md](publishing-homebrew.md)
+- WinGet publication — see [publishing-winget.md](publishing-winget.md)
 
 Keep the related flags disabled until the required secrets and environments exist.
 
