@@ -15,6 +15,19 @@ Set at least:
 
 The template uses `uv build` with Hatchling as the build backend by default.
 
+### Public repository and automatic updates
+
+Set `[project.urls].Repository` to the public GitHub repository URL. Optional automatic-update
+settings live in `[tool.python-ci-make-template.auto-update]`:
+
+- `enabled`: opt in to configured update checks
+- `strategies`: installation strategy per platform or `default`
+- `asset-patterns`: release asset glob per platform or `default`
+- `installer-args`: optional arguments for the Windows installer strategy
+
+Run `make gen-project-module` after editing these values. See
+[Automatic Updates](automatic-updates.md) for complete wheel and installer examples.
+
 ## `project.mk`
 
 ### Core project identity

@@ -45,3 +45,10 @@ If GitHub Releases report that `dist/*` matches no files, the project is usually
 - installer or executable paths were never added to `RELEASE_ARTIFACTS`
 
 The updated workflow now prints the generated files and validates the glob patterns before upload.
+
+## Release assets and automatic updates
+
+The auto-updater consumes files attached by this workflow, not GitHub's generated source archives.
+Its configured asset pattern must match exactly one file in the release. Keep
+`RELEASE_ARTIFACTS`, the produced filenames, and the settings described in
+[Automatic Updates](automatic-updates.md) aligned.
