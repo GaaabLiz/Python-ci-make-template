@@ -3,7 +3,20 @@ name = "python-ci-make-template"
 version = "0.0.2"
 description = "Add your description here"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "packaging>=24.2",
+]
+
+[project.scripts]
+myapp = "myapp.cli:main"
+
+[project.urls]
+Repository = "https://github.com/GaaabLiz/Python-ci-make-template"
+
+[tool.python-ci-make-template.auto-update]
+enabled = true
+strategies = { default = "pip" }
+asset-patterns = { default = "python_ci_make_template-*.whl" }
 
 [build-system]
 requires = ["hatchling"]

@@ -14,6 +14,7 @@ This template gives you:
 - a `project.mk` file where each project keeps its own settings
 - GitHub Actions workflows that call `make` targets instead of ad-hoc shell commands
 - optional packaging flows for PyInstaller, Inno Setup, PyPI, Docker Hub, and Chocolatey
+- verified updates from the latest release of a public GitHub repository
 
 ## How to use it
 
@@ -51,6 +52,7 @@ Use the shorter guides below for the parts you need:
 - [Build And Packaging](docs/build-and-packaging.md)
 - [CI/CD Automation](docs/ci-cd.md)
 - [Release Automation](docs/release-automation.md)
+- [Automatic Updates](docs/automatic-updates.md)
 - [Qt Support](docs/qt-support.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
