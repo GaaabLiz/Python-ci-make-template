@@ -252,6 +252,25 @@ test-cov:
 	@echo "[test-cov] Running pytest with coverage against: $(TESTS_PATH)"
 	uv run pytest $(TESTS_PATH) --cov=$(PYTHON_MAIN_PACKAGE) --cov-report=term-missing
 
+## test-cov-verify      – Run tests and fail if coverage is below MIN_COVERAGE
+.PHONY: test-cov-verify
+test-cov-verify:
+	@echo "[test-cov-verify] Verifying coverage (>=$(MIN_COVERAGE)%) against: $(TESTS_PATH)"
+	uv run pytest $(TESTS_PATH) --cov=$(PYTHON_MAIN_PACKAGE) --cov-report=term-missing --cov-fail-under=$(MIN_COVERAGE)
+
+## test-cov-html        – Run tests and generate an HTML coverage report
+.PHONY: test-cov-html
+test-cov-html:
+	@echo "[test-cov-html] Generating HTML coverage report"
+	uv run pytest $(TESTS_PATH) --cov=$(PYTHON_MAIN_PACKAGE) --cov-report=html
+	@echo "Open htmlcov/index.html in your browser to view the report."
+
+## test-cov-xml         – Run tests and generate an XML coverage report
+.PHONY: test-cov-xml
+test-cov-xml:
+	@echo "[test-cov-xml] Generating XML coverage report"
+	uv run pytest $(TESTS_PATH) --cov=$(PYTHON_MAIN_PACKAGE) --cov-report=xml
+
 ## qa                   – Run all quality gates: lint · format-check · type-check · test
 .PHONY: qa
 qa: lint format-check type-check test

@@ -89,6 +89,9 @@ RELEASE_ARTIFACTS ?= dist/*
 #   tests/unit tests/integration
 TESTS_PATH ?= tests
 
+# Minimum code coverage threshold (percentage) required by test-cov-verify.
+MIN_COVERAGE ?= 80
+
 # Python version used by CI jobs via uv-managed environments.
 CI_PYTHON_VERSION ?= 3.13
 
