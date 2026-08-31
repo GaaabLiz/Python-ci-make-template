@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import pprint
 import struct
 import sys
 import tomllib
@@ -33,6 +34,8 @@ def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
             data = tomllib.load(file_handle)
 
         project = data.get("project", {})
+        project_urls = project.get("urls", {})
+        template_config = data.get("tool", {}).get("python-ci-make-template", {})
         raw_authors = project.get("authors", [])
         authors: list[tuple[str | None, str | None]] = []
         for entry in raw_authors:
@@ -47,6 +50,8 @@ def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
             "description": project.get("description"),
             "requires_python": project.get("requires-python"),
             "authors": authors,
+            "repository_url": project_urls.get("Repository"),
+            "auto_update": template_config.get("auto-update", {}),
         }
 
         authors_repr = (
@@ -54,6 +59,7 @@ def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
             + ", ".join(f"({repr(name)}, {repr(email)})" for name, email in info["authors"])
             + "]"
         )
+        auto_update_repr = pprint.pformat(info["auto_update"], width=80, sort_dicts=False)
 
         lines = [
             "# fmt: off",
@@ -62,6 +68,8 @@ def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
             "description = " + repr(info["description"]),
             "requires_python = " + repr(info["requires_python"]),
             "authors = " + authors_repr,
+            "repository_url = " + repr(info["repository_url"]),
+            "auto_update = " + auto_update_repr,
             "# fmt: on",
         ]
 
