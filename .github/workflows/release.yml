@@ -82,6 +82,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: ${{ needs.ci-config.outputs.release_notes_file }}
+          draft: true
 
   build-linux:
     name: Build Assets (Linux)
@@ -117,6 +118,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ needs.ci-config.outputs.release_artifacts }}
+          draft: true
 
   build-macos:
     name: Build Assets (macOS)
@@ -152,6 +154,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ needs.ci-config.outputs.release_artifacts }}
+          draft: true
 
   build-windows:
     name: Build Assets (Windows)
@@ -190,4 +193,31 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ needs.ci-config.outputs.release_artifacts }}
+          draft: true
+
+  publish-release:
+    name: Publish Release After All Builds
+    needs:
+      - ci-config
+      - changelog-and-release
+      - build-linux
+      - build-macos
+      - build-windows
+    if: >-
+      always() &&
+      needs.ci-config.result == 'success' &&
+      needs.changelog-and-release.result == 'success' &&
+      (needs.build-linux.result == 'success' ||
+       (needs.ci-config.outputs.build_linux == '0' && needs.build-linux.result == 'skipped')) &&
+      (needs.build-macos.result == 'success' ||
+       (needs.ci-config.outputs.build_macos == '0' && needs.build-macos.result == 'skipped')) &&
+      (needs.build-windows.result == 'success' ||
+       (needs.ci-config.outputs.build_windows == '0' && needs.build-windows.result == 'skipped'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Publish Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
 
