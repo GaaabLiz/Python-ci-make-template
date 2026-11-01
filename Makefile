@@ -163,9 +163,7 @@ gen-project-module:
 
 ## gen-logo-icons SVG=<path>  – Convert a .svg file to .ico/.png/.jpg/.icns in all standard sizes
 #
-#  Requires cairosvg and pillow (both in the dev dependency group).
-#  On macOS make sure cairo is available:   brew install cairo
-#  On Linux:                                sudo apt install libcairo2
+#  Requires skia-python and Pillow from the dev dependency group.
 #
 #  Example:
 #      make gen-logo-icons SVG=resources/logo.svg
@@ -585,7 +583,7 @@ ci-setup:
 	@echo "[ci-setup] Installing Python $(CI_PYTHON_VERSION) via uv"
 	uv python install $(CI_PYTHON_VERSION)
 	@echo "[ci-setup] Syncing dependency groups"
-	uv sync --all-groups
+	uv sync --all-groups --locked
 	@echo "[ci-setup] Tool versions"
 	uv --version
 	uv run python --version

@@ -79,7 +79,7 @@ jobs:
         run: make ci-generate-release-notes
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: ${{ needs.ci-config.outputs.release_notes_file }}
           draft: true
@@ -115,7 +115,7 @@ jobs:
         run: make ci-verify-release-artifacts
 
       - name: Upload Artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: ${{ needs.ci-config.outputs.release_artifacts }}
           draft: true
@@ -151,7 +151,7 @@ jobs:
         run: make ci-verify-release-artifacts
 
       - name: Upload Artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: ${{ needs.ci-config.outputs.release_artifacts }}
           draft: true
@@ -190,7 +190,7 @@ jobs:
         run: make ci-verify-release-artifacts
 
       - name: Upload Artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: ${{ needs.ci-config.outputs.release_artifacts }}
           draft: true
@@ -217,7 +217,7 @@ jobs:
 
     steps:
       - name: Publish Draft Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           draft: false
 
