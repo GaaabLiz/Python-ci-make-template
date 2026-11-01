@@ -1,62 +1,41 @@
 name: Publish Docker Hub
 
 on:
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment containing Docker Hub credentials
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  ci-config:
-    name: Read CI Config
-    runs-on: ubuntu-latest
-    outputs:
-      enable_dockerhub_publish: ${{ steps.config.outputs.enable_dockerhub_publish }}
-      dockerhub_environment: ${{ steps.config.outputs.dockerhub_environment }}
-      dockerhub_image: ${{ steps.config.outputs.dockerhub_image }}
-      dockerfile: ${{ steps.config.outputs.dockerfile }}
-      docker_build_context: ${{ steps.config.outputs.docker_build_context }}
-      docker_push_latest: ${{ steps.config.outputs.docker_push_latest }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Export Config To GitHub Output
-        id: config
-        run: make ci-export-config
-
   publish:
-    name: Publish Docker Image
-    needs: ci-config
-    if: needs.ci-config.outputs.enable_dockerhub_publish == '1'
+    name: Publish Docker image
     runs-on: ubuntu-latest
-    environment: ${{ needs.ci-config.outputs.dockerhub_environment }}
-
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      - name: Docker Hub Login
+      - name: Docker Hub login
         run: make ci-docker-login
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Resolve Docker Image Tag
+      - name: Resolve Docker image tag
         id: docker_tag
         run: make ci-export-docker-tag
 
-      - name: Build And Push Docker Image
+      - name: Build and push Docker image
         run: make ci-publish-dockerhub
         env:
           DOCKER_IMAGE_TAG: ${{ steps.docker_tag.outputs.docker_image_tag }}
-

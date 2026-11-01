@@ -19,11 +19,12 @@ The repository is split so reusable automation and project-specific settings sta
 
 ## Automation directories
 
-- `.github/workflows/ci.yml`: install, quality checks, tests, and package build
-- `.github/workflows/release.yml`: changelog, release creation, platform builds, and release asset upload
-- `.github/workflows/publish-pypi.yml`: optional PyPI publishing
-- `.github/workflows/publish-dockerhub.yml`: optional Docker Hub publishing
-- `.github/workflows/publish-chocolatey.yml`: optional Chocolatey publishing
+- `.github/workflows/ci.yml`: reusable quality, test matrix, and one package build with artifact smoke tests
+- `.github/workflows/release.yml`: CI gate, changelog, package and platform asset assembly, optional PyPI publishing, and release publication
+- `.github/workflows/publish-dockerhub.yml`: reusable Docker Hub publisher called by release.yml
+- `.github/workflows/publish-chocolatey.yml`: reusable Chocolatey publisher called by release.yml
+- `.github/workflows/publish-homebrew.yml`: reusable Homebrew publisher called after PyPI by release.yml
+- `.github/workflows/publish-winget.yml`: reusable WinGet publisher called by release.yml
 - `.mk/scripts.py`: internal helper entrypoint used by Make targets for generated files and logo conversion
 
 ## Design rule behind the layout

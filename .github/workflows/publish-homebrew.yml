@@ -1,56 +1,44 @@
 name: Publish Homebrew
 
 on:
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment containing the Homebrew tap token
+        required: true
+        type: string
+      uv_version:
+        description: Exact uv release used by the project workflows
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  ci-config:
-    name: Read CI Config
-    runs-on: ubuntu-latest
-    outputs:
-      enable_homebrew_publish: ${{ steps.config.outputs.enable_homebrew_publish }}
-      homebrew_environment: ${{ steps.config.outputs.homebrew_environment }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Export Config To GitHub Output
-        id: config
-        run: make ci-export-config
-
   publish:
-    name: Publish To Homebrew Tap
-    needs: ci-config
-    if: needs.ci-config.outputs.enable_homebrew_publish == '1'
+    name: Publish formula to tap
     runs-on: ubuntu-latest
-    environment: ${{ needs.ci-config.outputs.homebrew_environment }}
-
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "latest"
+          version: ${{ inputs.uv_version }}
           enable-cache: true
 
-      - name: Setup CI Environment
+      - name: Setup CI environment
         run: make ci-setup
 
-      - name: Generate Homebrew Formula
+      - name: Generate Homebrew formula
         run: make ci-generate-homebrew-formula
 
-      - name: Publish Formula To Tap
+      - name: Publish formula to tap
         run: make ci-publish-homebrew
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

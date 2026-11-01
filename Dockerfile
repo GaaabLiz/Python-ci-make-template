@@ -10,11 +10,17 @@
 #  Customize the ENTRYPOINT at the bottom to match your package's CLI command.
 # ==============================================================================
 
+# Versions default to the settings in project.mk, passed by `make ci-publish-dockerhub`.
+ARG PYTHON_VERSION=3.14
+ARG UV_VERSION=0.13.6
+
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM python:3.13-slim AS builder
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
+FROM python:${PYTHON_VERSION}-slim AS builder
 
 # Install uv for fast dependency resolution
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 WORKDIR /app
 
@@ -30,7 +36,7 @@ RUN uv sync --no-dev --locked
 
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM python:3.13-slim AS runtime
+FROM python:${PYTHON_VERSION}-slim AS runtime
 
 WORKDIR /app
 

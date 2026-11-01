@@ -1,22 +1,23 @@
 # Troubleshooting
 
-## `dist/*` does not match any files in release jobs
+## Platform release assets do not match `RELEASE_ARTIFACTS`
 
 Check these first:
 
-- run `make ci-build-release-assets`
+- check that the matching `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `CI_BUILD_WINDOWS` flag is enabled
+- run `make ci-build-release-assets` on the matching platform
 - run `make ci-list-build-artifacts`
 - confirm `RELEASE_ARTIFACTS` matches the generated files
-- if your project is package-only, keep `APPS_LIST` empty and make sure `make build` succeeds
+- if your project is package-only, leave all `CI_BUILD_*` values at 0; CI builds and publishes the Python distributions separately
 - if your project ships installers, add installer paths such as `Output/*.exe`
 
 ## CI does not run tests
 
 Check:
 
-- `CI_RUN_TESTS`
-- `TESTS_PATH`
-- whether your test dependencies are in the `dev` group used by `uv sync --all-groups`
+- `CI_TEST_COMMAND` and its arguments
+- whether test dependencies are declared in the `dev` group
+- whether `CI_PYTHON_VERSIONS` and `CI_TEST_OS_MATRIX` contain valid JSON arrays
 
 Use `make ci-log-config` locally to verify the effective values.
 
@@ -51,4 +52,4 @@ Example:
 make gen-logo-icons SVG=resources/logo.svg
 ```
 
-The command uses `.mk/scripts.py convert-logo`, `skia-python`, and Pillow from the `dev` dependency group.
+The command uses `.mk/scripts.py convert-logo`, `skia-python`, and Pillow from the optional `graphics` dependency group.

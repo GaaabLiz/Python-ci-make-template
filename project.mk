@@ -71,15 +71,13 @@ RELEASE_CHANGELOG_TARGET_BRANCH ?= main
 # When enabled, the workflow expects an Inno Setup script at INNO_SETUP_FILE.
 ENABLE_WINDOWS_INSTALLER ?= 0
 
-# Glob patterns for the files to attach to a GitHub Release as artefacts.
-# Separate multiple patterns with spaces.
+# Glob patterns for optional platform assets attached to a GitHub Release.
+# Wheel and sdist files are built and uploaded separately by the CI gate.
 # Examples:
-#   dist/*                                          – wheel + sdist only
-#   dist/* Output/*.exe                             – wheel + sdist + installer
-#   $(foreach a,$(APPS_LIST),dist/$($(a)_NAME)-*)  – per-app wheel globs
-# Keep this aligned with the files produced by your chosen build mode.
-# If your project only ships a Python package, the default dist/* is enough.
-# If you also ship installers or extra binaries, add those paths explicitly.
+#   dist/*                                          – PyInstaller output binaries
+#   dist/* Output/*.exe                             – binaries and Windows installer
+#   $(foreach a,$(APPS_LIST),dist/$($(a)_NAME)-*)  – per-app executable globs
+# Keep this aligned with the files produced by enabled platform builds.
 RELEASE_ARTIFACTS ?= dist/*
 
 # Directory (or pytest arguments) used by make test, make test-cov, and CI.
@@ -92,26 +90,37 @@ TESTS_PATH ?= tests
 # Minimum code coverage threshold (percentage) required by test-cov-verify.
 MIN_COVERAGE ?= 80
 
-# Python version used by CI jobs via uv-managed environments.
-CI_PYTHON_VERSION ?= 3.13
+# Primary Python version used for quality checks, packaging, and release assets.
+CI_PYTHON_VERSION ?= 3.14
 
-# Enable/disable automated test execution in .github/workflows/ci.yml.
-# The workflow always calls `make ci-test`; when this is 0 the step logs a skip.
-# Set to 0 when CI runners cannot access required external infrastructure.
-CI_RUN_TESTS ?= 1
+# JSON arrays used by the CI workflow. Keep these aligned with `requires-python`.
+# Example for a library supporting Python 3.11 through 3.14:
+#   CI_PYTHON_VERSIONS ?= ["3.11", "3.12", "3.13", "3.14"]
+CI_PYTHON_VERSIONS ?= ["3.11", "3.12", "3.13", "3.14"]
+CI_TEST_OS_MATRIX ?= ["ubuntu-latest", "macos-latest", "windows-latest"]
+
+# Pin uv so upstream releases cannot silently change CI behavior.
+CI_UV_VERSION ?= 0.13.6
+
+# Select the quality targets to run in CI. Add `type-check` if the project uses ty.
+CI_QUALITY_TARGETS ?= lint format-check
+
+# Override this for unittest, nox, tox, or a project-specific test runner.
+CI_TEST_COMMAND ?= uv run pytest $(TESTS_PATH)
 
 # Enable/disable docs generation during the release workflow.
 # When enabled, CI runs `make docs` and commits docs/ in a separate commit.
 CI_ENABLE_RELEASE_DOCS ?= 0
 
-# Enable/disable per-platform asset builds in the release workflow.
-# Set to 0 to skip a platform completely.
-CI_BUILD_LINUX ?= 1
-CI_BUILD_MACOS ?= 1
-CI_BUILD_WINDOWS ?= 1
+# Enable/disable per-platform executable/installer builds in the release workflow.
+# Python wheel and sdist builds run once in the reusable CI gate.
+# Set a platform to 1 only when APPS_LIST or the Windows installer is configured.
+CI_BUILD_LINUX ?= 0
+CI_BUILD_MACOS ?= 0
+CI_BUILD_WINDOWS ?= 0
 
-# Enable/disable automated publication to PyPI on version tags.
-# Keep this at 0 until PYPI_API_TOKEN is configured in repository secrets.
+# Enable/disable automated publication to PyPI after a verified release tag.
+# Configure the GitHub trusted publisher and environment before setting this to 1.
 CI_ENABLE_PYPI_PUBLISH ?= 0
 
 # GitHub Actions environment name used by the PyPI publish workflow.
@@ -137,6 +146,10 @@ CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
 
 # Path to the Dockerfile used for image builds.
 CI_DOCKERFILE ?= Dockerfile
+
+# Python and uv versions used by the sample Dockerfile.
+CI_DOCKER_PYTHON_VERSION ?= $(CI_PYTHON_VERSION)
+CI_DOCKER_UV_VERSION ?= $(CI_UV_VERSION)
 
 # Build context path passed to `docker build`.
 CI_DOCKER_BUILD_CONTEXT ?= .

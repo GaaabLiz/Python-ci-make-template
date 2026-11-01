@@ -43,7 +43,7 @@ CI_DOCKER_BUILD_CONTEXT ?= .
 CI_DOCKER_PUSH_LATEST ?= 1
 ```
 
-The template includes a sample multi-stage `Dockerfile` for Python CLI applications. Adjust the entrypoint to match your project:
+The sample multi-stage `Dockerfile` uses `CI_DOCKER_PYTHON_VERSION` and `CI_DOCKER_UV_VERSION`, which default to `CI_PYTHON_VERSION` and `CI_UV_VERSION`. Adjust the entrypoint to match your project:
 
 ```dockerfile
 ENTRYPOINT ["myapp"]
@@ -71,20 +71,15 @@ docker run --rm -it myapp
 
 ## How the workflow works
 
-The workflow in `../.github/workflows/publish-dockerhub.yml` runs when:
-
-- a `v*` tag is pushed, for example `v1.2.3`
-- the workflow is started manually with `workflow_dispatch`
+The workflow in `../.github/workflows/publish-dockerhub.yml` is called by `release.yml` after the CI gate, configured asset builds, and GitHub Release publication succeed. It runs only when `CI_ENABLE_DOCKERHUB_PUBLISH=1`.
 
 The publication sequence is:
 
-1. Read configuration from `project.mk` with `make ci-export-config`.
-2. Continue only when `CI_ENABLE_DOCKERHUB_PUBLISH=1`.
-3. Log in to Docker Hub with the configured secrets.
-4. Resolve the Docker tag from the Git tag or fallback version.
-5. Build the image with `docker build`.
-6. Push the versioned tag.
-7. Optionally push `latest` when `CI_DOCKER_PUSH_LATEST=1`.
+1. Log in to Docker Hub with the configured secrets.
+2. Resolve the Docker tag from the verified Git tag.
+3. Build the image with `docker build`.
+4. Push the versioned tag.
+5. Optionally push `latest` when `CI_DOCKER_PUSH_LATEST=1`.
 
 After publishing `v1.2.3`, users can pull:
 

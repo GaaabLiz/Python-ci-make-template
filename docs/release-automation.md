@@ -23,25 +23,28 @@ The template includes Make targets for version bumps, tagging, changelog generat
 
 ## Changelog and release notes
 
-The release workflow uses git-cliff:
+The release workflow only runs on version tags. It calls the same reusable CI workflow used for branch builds, verifies that the tag matches the project version, and keeps the GitHub release as a draft until validation and builds complete.
+
+It uses git-cliff for changelog and notes:
 
 - `make ci-generate-changelog`
 - `make ci-generate-release-notes`
 
 Configuration comes from `cliff.toml` and the file paths declared in `project.mk`.
 
-## How release asset building behaves
+## How release artifact building behaves
 
-- If `APPS_LIST` is empty, release builds create a normal Python package so `dist/*` exists.
-- If `APPS_LIST` is set, release builds create the package and one-file executables.
+- The CI gate builds and smoke-tests the wheel and sdist once; release publication reuses those exact files.
+- Native application asset builds are opt-in through `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS`.
+- If `APPS_LIST` is set, enabled platform jobs create one-file executables.
 - If Windows installer support is enabled, Windows release builds generate the installer as well.
 
 ## Common release mistake
 
-If GitHub Releases report that `dist/*` matches no files, the project is usually in one of these states:
+If an optional platform build reports that `RELEASE_ARTIFACTS` matches no files, the project is usually in one of these states:
 
-- the build step did not produce a package
+- `APPS_LIST` or Windows installer settings were not configured
+- the enabled platform build did not produce an asset
 - `RELEASE_ARTIFACTS` does not match the real output paths
-- installer or executable paths were never added to `RELEASE_ARTIFACTS`
 
-The updated workflow now prints the generated files and validates the glob patterns before upload.
+The workflow prints generated files and validates platform asset patterns before upload. Wheel and sdist are built by the CI gate and do not depend on `RELEASE_ARTIFACTS`.

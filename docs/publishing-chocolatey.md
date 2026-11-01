@@ -76,19 +76,14 @@ choco uninstall myapp --yes
 
 ## How the workflow works
 
-The workflow in `../.github/workflows/publish-chocolatey.yml` runs when:
-
-- a `v*` tag is pushed, for example `v1.2.3`
-- the workflow is started manually with `workflow_dispatch`
+The workflow in `../.github/workflows/publish-chocolatey.yml` is called by `release.yml` after the CI gate, configured asset builds, and GitHub Release publication succeed. It runs only when `CI_ENABLE_CHOCOLATEY_PUBLISH=1`.
 
 The workflow does the following:
 
-1. Read configuration from `project.mk` with `make ci-export-config`.
-2. Continue only when `CI_ENABLE_CHOCOLATEY_PUBLISH=1`.
-3. Install `make` and `uv` on the Windows runner.
-4. Build Windows release assets with `make ci-build-chocolatey-assets`.
-5. Generate the `.nuspec` and `chocolateyinstall.ps1` files with `make ci-pack-chocolatey`.
-6. Push the `.nupkg` to Chocolatey with `make ci-publish-chocolatey`.
+1. Install `make` and `uv` on the Windows runner.
+2. Build Windows release assets with `make ci-build-chocolatey-assets`.
+3. Generate the `.nuspec` and `chocolateyinstall.ps1` files with `make ci-pack-chocolatey`.
+4. Push the `.nupkg` to Chocolatey with `make ci-publish-chocolatey`.
 
 `ci-pack-chocolatey` generates:
 

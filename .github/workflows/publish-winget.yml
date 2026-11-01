@@ -1,65 +1,54 @@
 name: Publish WinGet
 
 on:
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment containing the WinGet GitHub token
+        required: true
+        type: string
+      uv_version:
+        description: Exact uv release used by the project workflows
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  ci-config:
-    name: Read CI Config
-    runs-on: ubuntu-latest
-    outputs:
-      enable_winget_publish: ${{ steps.config.outputs.enable_winget_publish }}
-      winget_environment: ${{ steps.config.outputs.winget_environment }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Export Config To GitHub Output
-        id: config
-        run: make ci-export-config
-
   publish:
-    name: Publish To WinGet
-    needs: ci-config
-    if: needs.ci-config.outputs.enable_winget_publish == '1'
+    name: Publish WinGet pull request
     runs-on: windows-latest
-    environment: ${{ needs.ci-config.outputs.winget_environment }}
-
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Make
-        run: choco install make
+        run: choco install make --yes
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "latest"
+          version: ${{ inputs.uv_version }}
           enable-cache: true
 
-      - name: Setup CI Environment
+      - name: Setup CI environment
         run: make ci-setup
 
-      - name: Build Windows Assets
+      - name: Build Windows assets
         run: make ci-build-winget-assets
 
-      - name: Generate WinGet Manifests
+      - name: Generate WinGet manifests
         run: make ci-generate-winget-manifests
 
-      - name: Validate WinGet Manifests
+      - name: Validate WinGet manifests
         run: make ci-validate-winget-manifests
 
-      - name: Publish WinGet Pull Request
+      - name: Publish WinGet pull request
         run: make ci-publish-winget
         env:
           WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
