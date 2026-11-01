@@ -14,7 +14,7 @@ Before publishing to Homebrew, your project must:
 2. Have `CI_ENABLE_PYPI_PUBLISH=1` configured in `project.mk`.
 3. Have at least one successful PyPI release before Homebrew publication is enabled.
 
-If PyPI publication is not configured yet, start with the existing `publish-pypi.yml` workflow.
+Configure PyPI Trusted Publishing in the release workflow before enabling Homebrew.
 
 ### On GitHub
 
@@ -84,7 +84,7 @@ class Myapp < Formula
   url "https://pypi.io/packages/source/m/myapp/myapp-1.2.3.tar.gz"
   license "MIT"
 
-  depends_on "python@3.13"
+  depends_on "python@3.14"
 
   def install
     virtualenv_install_with_resources
@@ -96,7 +96,7 @@ class Myapp < Formula
 end
 ```
 
-The formula downloads the source tarball from PyPI, creates an isolated virtual environment, installs the package and its dependencies, and exposes the CLI entry point in `bin/`.
+The formula uses the Python version configured by `CI_PYTHON_VERSION` in `project.mk`. It downloads the source tarball from PyPI, creates an isolated virtual environment, installs the package and its dependencies, and exposes the CLI entry point in `bin/`.
 
 ---
 
@@ -125,19 +125,14 @@ brew audit --strict --new dist/homebrew/myapp.rb
 
 ## How the workflow works
 
-The workflow in `../.github/workflows/publish-homebrew.yml` runs when:
-
-- a `v*` tag is pushed
-- the workflow is started manually with `workflow_dispatch`
+The workflow in `../.github/workflows/publish-homebrew.yml` is called by `release.yml` after PyPI publication succeeds. Homebrew publication requires both `CI_ENABLE_PYPI_PUBLISH=1` and `CI_ENABLE_HOMEBREW_PUBLISH=1`.
 
 It performs these steps:
 
-1. Read configuration from `project.mk`.
-2. Continue only when `CI_ENABLE_HOMEBREW_PUBLISH=1`.
-3. Generate the formula with `make ci-generate-homebrew-formula`.
-4. Clone the tap repository using `HOMEBREW_TAP_TOKEN`.
-5. Copy the formula into `Formula/myapp.rb`.
-6. Commit and push the change to the tap repository.
+1. Generate the formula with `make ci-generate-homebrew-formula`.
+2. Clone the tap repository using `HOMEBREW_TAP_TOKEN`.
+3. Copy the formula into `Formula/myapp.rb`.
+4. Commit and push the change to the tap repository.
 
 ### Release ordering
 
@@ -145,13 +140,14 @@ Homebrew publication should happen only after PyPI publication succeeds:
 
 ```text
 make release-patch-tag
--> push tag v1.2.3
--> publish-pypi.yml publishes the package to PyPI
+-> release.yml validates and builds the package
+-> release.yml publishes the package to PyPI
+-> release.yml publishes the GitHub Release
 -> publish-homebrew.yml updates the tap formula
 -> users can run brew upgrade myapp
 ```
 
-If the package is not available on PyPI yet when the formula is updated, `brew install` fails with a 404 response. Keep the PyPI workflow ahead of the Homebrew workflow in your release process.
+If PyPI publication fails, the Homebrew workflow does not run.
 
 ---
 
@@ -198,7 +194,7 @@ Even if the formula is accepted into homebrew-core, it is often still useful to 
 | Workflow does not start | `CI_ENABLE_HOMEBREW_PUBLISH=0` | Set it to `1` in `project.mk` |
 | Authentication fails while pushing to the tap | Wrong or expired token | Regenerate the PAT and update `HOMEBREW_TAP_TOKEN` |
 | Repository not found during clone | Tap repo does not exist or the token lacks access | Create `homebrew-tap` and verify token permissions |
-| `brew install` returns 404 | The package is not on PyPI yet | Ensure `publish-pypi.yml` finishes first |
+| `brew install` returns 404 | The package is not on PyPI yet | Check that the PyPI job in `release.yml` succeeded |
 | `brew audit` fails | Formula metadata is incomplete or invalid | Check `CI_HOMEBREW_DESCRIPTION`, `CI_HOMEBREW_LICENSE`, and `CI_HOMEBREW_HOMEPAGE` |
 | `No bottle available` warning appears | This is normal for personal taps | It is not an error; Homebrew builds from source |
 | Python dependencies are missing at install time | Package metadata is incomplete | Verify runtime dependencies in `pyproject.toml` |

@@ -2,7 +2,7 @@
 name = "python-ci-make-template"
 version = "0.0.2"
 description = "A reusable Makefile and GitHub Actions template for Python projects managed with uv."
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = []
 
 [build-system]
@@ -15,11 +15,17 @@ packages = ["myapp"]
 
 [dependency-groups]
 dev = [
-	"ty",
-	"pdoc",
 	"pytest",
 	"pytest-cov",
 	"ruff",
+]
+typing = [
+	"ty",
+]
+docs = [
+	"pdoc",
+]
+graphics = [
 	"cairosvg>=2.7",
 	"pillow>=10.0",
 	"svglib>=1.5",

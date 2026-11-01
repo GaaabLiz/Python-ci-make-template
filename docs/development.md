@@ -4,7 +4,7 @@ The normal local workflow is Make-based.
 
 ## Environment setup
 
-Install all development dependencies:
+Install the core development dependencies used by CI (pytest and Ruff):
 
 ```bash
 make install-dev
@@ -25,13 +25,13 @@ make install-all
 - `make type-check`: static analysis through `ty`
 - `make test`: run pytest using `TESTS_PATH`
 - `make test-cov`: pytest plus terminal coverage report
-- `make qa`: lint, format-check, type-check, and tests
+- `make qa`: the configured CI quality targets plus tests; add `type-check` to `CI_QUALITY_TARGETS` to enable ty
 
 ## Useful CI-oriented local checks
 
 - `make ci-log-config`: print the effective CI and release settings
 - `make ci-quality`: run the same static quality checks used in CI
-- `make ci-test`: run tests or log a skip depending on `CI_RUN_TESTS`
+- `make ci-test`: run the required CI test command from `CI_TEST_COMMAND`
 - `make ci-list-build-artifacts`: print the current artifact directories and patterns
 
 ## Generated metadata and logo assets
@@ -54,7 +54,7 @@ Direct script usage is also available when needed:
 
 ```bash
 uv run python .mk/scripts.py gen-project-module pyproject.toml myapp/project.py
-uv run python .mk/scripts.py convert-logo resources/logo.svg
+uv run --group graphics python .mk/scripts.py convert-logo resources/logo.svg
 ```
 
 ## Documentation generation

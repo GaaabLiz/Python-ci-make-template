@@ -65,13 +65,14 @@ make build-installer
 
 ## Release asset expectations
 
-GitHub Release uploads use `RELEASE_ARTIFACTS`.
+CI builds and smoke-tests the wheel and sdist once, then uploads them to the GitHub Release. `RELEASE_ARTIFACTS` is for optional application binaries and installers only.
 
-- package-only projects should usually keep `RELEASE_ARTIFACTS=dist/*`
+- package-only projects should leave `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS` at 0
+- application projects should enable only the platform jobs they need
 - projects with installers should usually add `Output/*.exe`
 - projects with extra binaries should add the matching output paths explicitly
 
-The release workflow now prints generated files and fails early if `RELEASE_ARTIFACTS` matches nothing.
+Enabled platform jobs print generated files and fail early if `RELEASE_ARTIFACTS` matches nothing.
 
 ## Logo and icon assets
 

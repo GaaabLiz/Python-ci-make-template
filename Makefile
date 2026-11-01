@@ -174,7 +174,7 @@ gen-logo-icons:
 		echo "Usage: make gen-logo-icons SVG=resources/logo.svg"; \
 		exit 1; \
 	fi
-	uv run python .mk/scripts.py convert-logo "$(SVG)"
+	uv run --group graphics python .mk/scripts.py convert-logo "$(SVG)"
 
 ## gen-inno-iss         – Generate $(INNO_SETUP_FILE) from project.mk installer variables
 #
@@ -236,13 +236,13 @@ format-check:
 ## type-check           – Run static type analysis with ty
 .PHONY: type-check
 type-check:
-	uv run ty check --config-file $(TY_CONFIG_FILE) $(PYTHON_MAIN_PACKAGE)
+	uv run --group typing ty check --config-file $(TY_CONFIG_FILE) $(PYTHON_MAIN_PACKAGE)
 
 ## test                 – Run the full test suite with pytest
 .PHONY: test
 test:
-	@echo "[test] Running pytest against: $(TESTS_PATH)"
-	uv run pytest $(TESTS_PATH)
+	@echo "[test] Running configured command: $(CI_TEST_COMMAND)"
+	$(CI_TEST_COMMAND)
 
 ## test-cov             – Run tests with a terminal coverage report
 .PHONY: test-cov
@@ -271,7 +271,7 @@ test-cov-xml:
 
 ## qa                   – Run all quality gates: lint · format-check · type-check · test
 .PHONY: qa
-qa: lint format-check type-check test
+qa: $(CI_QUALITY_TARGETS) test
 
 
 # ==============================================================================
@@ -329,7 +329,7 @@ build-exe:
 build-exe-onefile:
 	@if [ -z "$(strip $(APPS_LIST))" ]; then \
 		echo "[build-exe-onefile] APPS_LIST is empty -> skipping PyInstaller onefile builds."; \
-		echo "[build-exe-onefile] Pure package projects should keep APPS_LIST empty and release dist/* only."; \
+		echo "[build-exe-onefile] Package-only releases do not enable platform asset builds."; \
 	else \
 		echo "[build-exe-onefile] Building PyInstaller onefile apps: $(APPS_LIST)"; \
 		$(foreach app,$(APPS_LIST),\
@@ -381,7 +381,7 @@ build-installer: build-app-onefile installer
 ## docs                 – Generate HTML docs in docs/ using pdoc (markdown format)
 .PHONY: docs
 docs:
-	uv run pdoc -o docs -d markdown $(PYTHON_MAIN_PACKAGE)
+	uv run --group docs pdoc -o docs -d markdown $(PYTHON_MAIN_PACKAGE)
 
 ## docs-open            – Generate docs and open index.html in the default browser
 .PHONY: docs-open
@@ -567,23 +567,27 @@ ci-log-config:
 	@echo "[ci-log-config] Project configuration summary"
 	@echo "[ci-log-config] PYTHON_MAIN_PACKAGE=$(PYTHON_MAIN_PACKAGE)"
 	@echo "[ci-log-config] TESTS_PATH=$(TESTS_PATH)"
-	@echo "[ci-log-config] CI_RUN_TESTS=$(CI_RUN_TESTS)"
 	@echo "[ci-log-config] CI_PYTHON_VERSION=$(CI_PYTHON_VERSION)"
+	@echo "[ci-log-config] CI_PYTHON_VERSIONS=$(CI_PYTHON_VERSIONS)"
+	@echo "[ci-log-config] CI_TEST_OS_MATRIX=$(CI_TEST_OS_MATRIX)"
+	@echo "[ci-log-config] CI_UV_VERSION=$(CI_UV_VERSION)"
+	@echo "[ci-log-config] CI_QUALITY_TARGETS=$(CI_QUALITY_TARGETS)"
+	@echo "[ci-log-config] CI_TEST_COMMAND=$(CI_TEST_COMMAND)"
 	@echo "[ci-log-config] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"
 	@echo "[ci-log-config] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"
 	@echo "[ci-log-config] RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"
 	@echo "[ci-log-config] CI_ENABLE_WINGET_PUBLISH=$(CI_ENABLE_WINGET_PUBLISH)"
 	@echo "[ci-log-config] CI_WINGET_PACKAGE_IDENTIFIER=$(CI_WINGET_PACKAGE_IDENTIFIER)"
-	@echo "[ci-log-config] Hint: leave APPS_LIST empty for package-only projects."
-	@echo "[ci-log-config] Hint: add installer/binary paths to RELEASE_ARTIFACTS when you publish more than dist/*."
+	@echo "[ci-log-config] Hint: leave APPS_LIST empty and CI_BUILD_* at 0 for package-only releases."
+	@echo "[ci-log-config] Hint: RELEASE_ARTIFACTS covers optional platform assets; package distributions are uploaded by CI."
 
-## ci-setup               – Prepare CI environment (install Python via uv + sync all groups)
+## ci-setup               – Prepare CI environment (install Python via uv + sync the dev group)
 .PHONY: ci-setup
 ci-setup:
 	@echo "[ci-setup] Installing Python $(CI_PYTHON_VERSION) via uv"
 	uv python install $(CI_PYTHON_VERSION)
-	@echo "[ci-setup] Syncing dependency groups"
-	uv sync --all-groups --locked
+	@echo "[ci-setup] Syncing the default project and dev dependencies"
+	uv sync --group dev --python $(CI_PYTHON_VERSION) --locked
 	@echo "[ci-setup] Tool versions"
 	uv --version
 	uv run python --version
@@ -591,28 +595,35 @@ ci-setup:
 ## ci-quality             – Run CI static quality gates (lint, format-check, type-check)
 .PHONY: ci-quality
 ci-quality:
-	@echo "[ci-quality] Running lint, format-check, and type-check for $(PYTHON_MAIN_PACKAGE)"
-	$(MAKE) --no-print-directory lint format-check type-check
+	@echo "[ci-quality] Running configured quality targets: $(CI_QUALITY_TARGETS)"
+	$(MAKE) --no-print-directory $(CI_QUALITY_TARGETS)
 
-## ci-test                – Run automated tests configured for CI when CI_RUN_TESTS=1
+## ci-test                – Run the required test command configured for CI
 .PHONY: ci-test
 ci-test:
-	@if [ "$(CI_RUN_TESTS)" = "1" ]; then \
-		echo "[ci-test] CI_RUN_TESTS=1 -> running tests from $(TESTS_PATH)"; \
-		$(MAKE) --no-print-directory test; \
-	else \
-		echo "[ci-test] CI_RUN_TESTS=0 -> skipping automated tests."; \
-		echo "[ci-test] Set CI_RUN_TESTS=1 in project.mk to execute tests in .github/workflows/ci.yml."; \
-	fi
+	@echo "[ci-test] Tests are required in CI"
+	$(MAKE) --no-print-directory test
+
+## ci-validate-config    – Validate CI matrices and publication dependencies
+.PHONY: ci-validate-config
+ci-validate-config:
+	python3 .mk/scripts.py validate-ci-config \
+		'$(CI_PYTHON_VERSIONS)' '$(CI_TEST_OS_MATRIX)' \
+		'$(CI_ENABLE_PYPI_PUBLISH)' '$(CI_ENABLE_HOMEBREW_PUBLISH)'
 
 ## ci-export-config       – Export CI configuration values to $GITHUB_OUTPUT
 .PHONY: ci-export-config
 ci-export-config:
+	@$(MAKE) --no-print-directory ci-validate-config
 	@if [ -z "$$GITHUB_OUTPUT" ]; then \
 		echo "Error: GITHUB_OUTPUT is not set."; \
 		exit 1; \
 	fi
 	@echo "[ci-export-config] Exporting CI configuration to $$GITHUB_OUTPUT"
+	@printf 'python_version=%s\n' '$(CI_PYTHON_VERSION)' >> "$$GITHUB_OUTPUT"
+	@printf 'python_versions=%s\n' '$(CI_PYTHON_VERSIONS)' >> "$$GITHUB_OUTPUT"
+	@printf 'test_os_matrix=%s\n' '$(CI_TEST_OS_MATRIX)' >> "$$GITHUB_OUTPUT"
+	@printf 'uv_version=%s\n' '$(CI_UV_VERSION)' >> "$$GITHUB_OUTPUT"
 	@echo "release_branch=$(RELEASE_CHANGELOG_TARGET_BRANCH)" >> "$$GITHUB_OUTPUT"
 	@echo "windows_installer_enabled=$(ENABLE_WINDOWS_INSTALLER)" >> "$$GITHUB_OUTPUT"
 	@echo "build_linux=$(CI_BUILD_LINUX)" >> "$$GITHUB_OUTPUT"
@@ -677,7 +688,7 @@ ci-commit-changelog:
 	else \
 		git commit -m "chore: update changelog [skip ci]"; \
 		git fetch origin; \
-		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)" || echo "Push failed, continuing..."; \
+		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
 	fi
 
 ## ci-generate-docs       – Generate project documentation for release automation
@@ -698,7 +709,7 @@ ci-commit-docs:
 	else \
 		git commit -m "docs: update generated documentation [skip ci]"; \
 		git fetch origin; \
-		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)" || echo "Push failed, continuing..."; \
+		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
 	fi
 
 ## ci-build-release-assets – Build release assets for the current runner OS with verbose diagnostics
@@ -710,13 +721,13 @@ ci-build-release-assets:
 	@if [ "$(OS_NAME)" = "windows" ] && [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
 		echo "[ci-build-release-assets] Building Windows installer because ENABLE_WINDOWS_INSTALLER=1"; \
 		$(MAKE) --no-print-directory install-inno; \
-		$(MAKE) --no-print-directory build-installer; \
+		$(MAKE) --no-print-directory build-exe-onefile; \
+		$(MAKE) --no-print-directory installer; \
 	elif [ -n "$(strip $(APPS_LIST))" ]; then \
-		echo "[ci-build-release-assets] APPS_LIST is set -> building package plus onefile executables"; \
-		$(MAKE) --no-print-directory build-app-onefile; \
+		echo "[ci-build-release-assets] APPS_LIST is set -> building onefile executables"; \
+		$(MAKE) --no-print-directory build-exe-onefile; \
 	else \
-		echo "[ci-build-release-assets] APPS_LIST is empty -> building package only so dist/* exists for releases"; \
-		$(MAKE) --no-print-directory build; \
+		echo "[ci-build-release-assets] No platform assets configured; package distributions are built once by CI."; \
 	fi
 	@$(MAKE) --no-print-directory ci-list-build-artifacts
 
@@ -755,14 +766,34 @@ ci-verify-release-artifacts:
 		done; \
 	done; \
 	if [ "$$matched" -ne 1 ]; then \
-		echo "[ci-verify-release-artifacts] Error: no generated files matched RELEASE_ARTIFACTS."; \
-		echo "[ci-verify-release-artifacts] Hint: package-only projects need make build to populate dist/."; \
+		echo "[ci-verify-release-artifacts] Error: no platform assets matched RELEASE_ARTIFACTS."; \
+		echo "[ci-verify-release-artifacts] Hint: wheel and sdist files are built separately by the CI gate."; \
 		echo "[ci-verify-release-artifacts] Hint: executable projects must set APPS_LIST and companion *_NAME/*_MAIN/*_ICO/*_ICNS variables in project.mk."; \
 		echo "[ci-verify-release-artifacts] Hint: installer projects usually need Output/*.exe added to RELEASE_ARTIFACTS."; \
 		exit 1; \
 	fi
 
-## ci-publish-pypi        – Publish package artifacts to PyPI (requires UV_PUBLISH_TOKEN)
+## ci-smoke-build        – Install each wheel and sdist in isolation and import the package
+.PHONY: ci-smoke-build
+ci-smoke-build:
+	uv run python .mk/scripts.py smoke-install-artifacts dist "$(PYTHON_MAIN_PACKAGE)"
+
+## ci-verify-release-version – Fail unless the current v-tag matches the project version
+.PHONY: ci-verify-release-version
+ci-verify-release-version:
+	@if [ "$$GITHUB_REF_TYPE" != "tag" ] || [ -z "$$GITHUB_REF_NAME" ]; then \
+		echo "Error: release version verification requires a pushed tag."; \
+		exit 1; \
+	fi; \
+	VERSION=$$(uv version --short); \
+	TAG_VERSION=$${GITHUB_REF_NAME#v}; \
+	if [ "$$VERSION" != "$$TAG_VERSION" ]; then \
+		echo "Error: tag version '$$TAG_VERSION' does not match pyproject version '$$VERSION'."; \
+		exit 1; \
+	fi; \
+	echo "Verified release version $$VERSION."
+
+## ci-publish-pypi        – Publish package artifacts to PyPI (requires trusted publishing)
 .PHONY: ci-publish-pypi
 ci-publish-pypi:
 	uv publish
@@ -803,6 +834,8 @@ ci-docker-build:
 	fi
 	docker build \
 		-f "$(CI_DOCKERFILE)" \
+		--build-arg PYTHON_VERSION="$(CI_DOCKER_PYTHON_VERSION)" \
+		--build-arg UV_VERSION="$(CI_DOCKER_UV_VERSION)" \
 		-t "$(CI_DOCKERHUB_IMAGE):$$DOCKER_IMAGE_TAG" \
 		"$(CI_DOCKER_BUILD_CONTEXT)"
 
@@ -911,7 +944,7 @@ ci-generate-homebrew-formula:
 		'  url "https://pypi.io/packages/source/'"$${PKG_NAME:0:1}"'/'"$$PKG_NAME"'/'"$$PKG_NAME"'-'"$$VERSION"'.tar.gz"' \
 		'  license "$(CI_HOMEBREW_LICENSE)"' \
 		'' \
-		'  depends_on "python@3.13"' \
+		'  depends_on "python@$(CI_PYTHON_VERSION)"' \
 		'' \
 		'  def install' \
 		'    virtualenv_install_with_resources' \

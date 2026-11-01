@@ -174,10 +174,7 @@ Microsoft also recommends testing the manifest in Windows Sandbox before the fir
 
 ## How publication actually works
 
-The workflow in `../.github/workflows/publish-winget.yml` runs when:
-
-- a `v*` tag is pushed
-- the workflow is started manually with `workflow_dispatch`
+The workflow in `../.github/workflows/publish-winget.yml` is called by `release.yml` after the CI gate, configured asset builds, and GitHub Release publication succeed. It runs only when `CI_ENABLE_WINGET_PUBLISH=1`.
 
 A typical flow looks like this:
 

@@ -3,8 +3,13 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
+import os
+import shutil
 import struct
+import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -275,6 +280,80 @@ def convert_logo(svg_path: Path) -> int:
     return 0
 
 
+def validate_ci_config(
+    python_versions_json: str,
+    test_os_json: str,
+    enable_pypi_publish: str,
+    enable_homebrew_publish: str,
+) -> int:
+    try:
+        for label, raw in (
+            ("CI_PYTHON_VERSIONS", python_versions_json),
+            ("CI_TEST_OS_MATRIX", test_os_json),
+        ):
+            value = json.loads(raw)
+            if not isinstance(value, list) or not value:
+                raise ValueError(f"{label} must be a non-empty JSON array.")
+            if any(not isinstance(item, str) or not item.strip() for item in value):
+                raise ValueError(f"{label} must contain only non-empty strings.")
+            if len(set(value)) != len(value):
+                raise ValueError(f"{label} contains duplicate values.")
+
+        toggles = {
+            "CI_ENABLE_PYPI_PUBLISH": enable_pypi_publish,
+            "CI_ENABLE_HOMEBREW_PUBLISH": enable_homebrew_publish,
+        }
+        for label, value in toggles.items():
+            if value not in {"0", "1"}:
+                raise ValueError(f"{label} must be 0 or 1.")
+
+        if enable_homebrew_publish == "1" and enable_pypi_publish != "1":
+            raise ValueError("Homebrew publication requires PyPI publication to be enabled.")
+
+        return 0
+    except (json.JSONDecodeError, ValueError) as error:
+        print(f"CI configuration error: {error}", file=sys.stderr)
+        return 1
+
+
+def smoke_install_artifacts(dist_dir: Path, import_name: str) -> int:
+    artifacts = sorted([*dist_dir.glob("*.whl"), *dist_dir.glob("*.tar.gz")])
+    if not artifacts:
+        print(f"No wheel or sdist found in {dist_dir}.", file=sys.stderr)
+        return 1
+
+    uv_path = shutil.which("uv")
+    if uv_path is None:
+        print("uv is required to smoke-test built distributions.", file=sys.stderr)
+        return 1
+
+    for artifact in artifacts:
+        print(f"[ci-smoke-build] Installing {artifact.name} in an isolated environment")
+        environment = os.environ.copy()
+        for key in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "UV_RUN_RECURSION_DEPTH"):
+            environment.pop(key, None)
+
+        with tempfile.TemporaryDirectory(prefix="python-package-smoke-") as temp_dir:
+            command = [
+                uv_path,
+                "run",
+                "--isolated",
+                "--no-project",
+                "--with",
+                str(artifact.resolve()),
+                "python",
+                "-c",
+                f"import importlib; importlib.import_module({import_name!r})",
+            ]
+            result = subprocess.run(command, cwd=temp_dir, env=environment, check=False)
+            if result.returncode != 0:
+                print(f"Smoke test failed for {artifact.name}.", file=sys.stderr)
+                return result.returncode
+
+    print(f"[ci-smoke-build] Installed and imported {len(artifacts)} distributions successfully.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Utility entrypoint for template helper scripts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -330,6 +409,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
     convert_logo_parser.add_argument("svg_path", type=Path)
     convert_logo_parser.set_defaults(handler=lambda args: convert_logo(args.svg_path))
+
+    validate_ci_parser = subparsers.add_parser(
+        "validate-ci-config",
+        help="Validate JSON CI matrices and publication dependencies.",
+    )
+    validate_ci_parser.add_argument("python_versions_json")
+    validate_ci_parser.add_argument("test_os_json")
+    validate_ci_parser.add_argument("enable_pypi_publish")
+    validate_ci_parser.add_argument("enable_homebrew_publish")
+    validate_ci_parser.set_defaults(
+        handler=lambda args: validate_ci_config(
+            args.python_versions_json,
+            args.test_os_json,
+            args.enable_pypi_publish,
+            args.enable_homebrew_publish,
+        )
+    )
+
+    smoke_parser = subparsers.add_parser(
+        "smoke-install-artifacts",
+        help="Install built wheel and sdist files in isolated environments and import a package.",
+    )
+    smoke_parser.add_argument("dist_dir", type=Path)
+    smoke_parser.add_argument("import_name")
+    smoke_parser.set_defaults(
+        handler=lambda args: smoke_install_artifacts(args.dist_dir, args.import_name)
+    )
 
     return parser
 
