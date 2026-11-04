@@ -61,11 +61,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_AUTOMATION_TOKEN || github.token }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -77,25 +79,26 @@ jobs:
       - name: Setup CI environment
         run: make ci-setup
 
+      - name: Prepare release automation branch
+        run: make ci-prepare-release-update-branch
+
       - name: Install git-cliff
         run: make ci-install-git-cliff
 
       - name: Generate changelog
         run: make ci-generate-changelog
 
-      - name: Commit changelog
-        run: make ci-commit-changelog
-
       - name: Generate docs
         if: needs.ci-config.outputs.enable_release_docs == '1'
         run: make ci-generate-docs
 
-      - name: Commit docs
-        if: needs.ci-config.outputs.enable_release_docs == '1'
-        run: make ci-commit-docs
-
       - name: Generate release notes
         run: make ci-generate-release-notes
+
+      - name: Open or update generated files pull request
+        run: make ci-open-release-updates-pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_AUTOMATION_TOKEN || github.token }}
 
       - name: Create draft release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
@@ -127,7 +130,7 @@ jobs:
           enable-cache: true
 
       - name: Setup CI environment
-        run: make ci-setup
+        run: make ci-setup-build
 
       - name: Build and verify application assets
         run: |
@@ -165,7 +168,7 @@ jobs:
           enable-cache: true
 
       - name: Setup CI environment
-        run: make ci-setup
+        run: make ci-setup-build
 
       - name: Build and verify application assets
         run: |
@@ -206,7 +209,7 @@ jobs:
           enable-cache: true
 
       - name: Setup CI environment
-        run: make ci-setup
+        run: make ci-setup-build
 
       - name: Build and verify application assets
         run: |
@@ -331,7 +334,6 @@ jobs:
     uses: ./.github/workflows/publish-dockerhub.yml
     with:
       environment: ${{ needs.ci-config.outputs.dockerhub_environment }}
-    secrets: inherit
 
   publish-chocolatey:
     name: Publish Chocolatey package
@@ -344,7 +346,6 @@ jobs:
     with:
       environment: ${{ needs.ci-config.outputs.chocolatey_environment }}
       uv_version: ${{ needs.ci-config.outputs.uv_version }}
-    secrets: inherit
 
   publish-homebrew:
     name: Publish Homebrew formula
@@ -358,7 +359,6 @@ jobs:
     with:
       environment: ${{ needs.ci-config.outputs.homebrew_environment }}
       uv_version: ${{ needs.ci-config.outputs.uv_version }}
-    secrets: inherit
 
   publish-winget:
     name: Publish WinGet manifests
@@ -371,4 +371,3 @@ jobs:
     with:
       environment: ${{ needs.ci-config.outputs.winget_environment }}
       uv_version: ${{ needs.ci-config.outputs.uv_version }}
-    secrets: inherit
