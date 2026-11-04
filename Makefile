@@ -115,7 +115,7 @@ install:
 .PHONY: install-all
 install-all:
 	uv python install $(CI_PYTHON_VERSION)
-	uv sync --all-extras --all-groups
+	uv sync --all-extras --all-groups --python $(CI_PYTHON_VERSION)
 	uv build
 
 ## install-dev          – Sync only the dev dependency group
@@ -123,10 +123,10 @@ install-all:
 install-dev:
 	uv sync --group dev
 
-## install-pyinstaller  – Add PyInstaller to the dev group (needed for build-exe targets)
+## install-pyinstaller  – Sync the build group containing PyInstaller
 .PHONY: install-pyinstaller
 install-pyinstaller:
-	uv add --group dev pyinstaller
+	uv sync --group dev --group build
 
 ## install-inno         – Install Inno Setup via Chocolatey (Windows only)
 .PHONY: install-inno
@@ -135,7 +135,7 @@ install-inno:
 		echo "Error: install-inno is available only on Windows."; \
 		exit 1; \
 	fi
-	choco install innosetup
+	choco install innosetup --yes
 
 
 # ==============================================================================
@@ -310,14 +310,15 @@ build-uv:
 #    <id>_ICNS   macOS icon    (.icns)
 .PHONY: build-exe
 build-exe:
-	@if [ -z "$(strip $(APPS_LIST))" ]; then \
+	@set -eu; \
+	if [ -z "$(strip $(APPS_LIST))" ]; then \
 		echo "[build-exe] APPS_LIST is empty -> skipping PyInstaller one-folder builds."; \
 		echo "[build-exe] Set APPS_LIST plus <app>_NAME/<app>_MAIN/<app>_ICO/<app>_ICNS in project.mk to enable executables."; \
 	else \
 		echo "[build-exe] Building PyInstaller apps: $(APPS_LIST)"; \
 		$(foreach app,$(APPS_LIST),\
-			uv run pyinstaller --noconfirm --windowed \
-				--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
+			uv run pyinstaller --noconfirm $(if $(filter 1,$(PYINSTALLER_WINDOWED)),--windowed,) \
+				$(if $(filter Darwin,$(UNAME_S)),--icon=$($(app)_ICNS),$(if $(filter windows,$(OS_NAME)),--icon=$($(app)_ICO),)) \
 				--name=$($(app)_NAME)-$(OS_NAME) \
 				$($(app)_MAIN); \
 		) \
@@ -327,14 +328,15 @@ build-exe:
 ## build-exe-onefile    – Build single-file executables with PyInstaller for each app in APPS_LIST
 .PHONY: build-exe-onefile
 build-exe-onefile:
-	@if [ -z "$(strip $(APPS_LIST))" ]; then \
+	@set -eu; \
+	if [ -z "$(strip $(APPS_LIST))" ]; then \
 		echo "[build-exe-onefile] APPS_LIST is empty -> skipping PyInstaller onefile builds."; \
 		echo "[build-exe-onefile] Package-only releases do not enable platform asset builds."; \
 	else \
 		echo "[build-exe-onefile] Building PyInstaller onefile apps: $(APPS_LIST)"; \
 		$(foreach app,$(APPS_LIST),\
-			uv run pyinstaller --noconfirm --windowed --onefile \
-				--icon=$(if $(filter Darwin,$(UNAME_S)),$($(app)_ICNS),$($(app)_ICO)) \
+			uv run pyinstaller --noconfirm $(if $(filter 1,$(PYINSTALLER_WINDOWED)),--windowed,) --onefile \
+				$(if $(filter Darwin,$(UNAME_S)),--icon=$($(app)_ICNS),$(if $(filter windows,$(OS_NAME)),--icon=$($(app)_ICO),)) \
 				--name=$($(app)_NAME)-$(OS_NAME) \
 				$($(app)_MAIN); \
 		) \
@@ -381,15 +383,17 @@ build-installer: build-app-onefile installer
 ## docs                 – Generate HTML docs in docs/ using pdoc (markdown format)
 .PHONY: docs
 docs:
-	uv run --group docs pdoc -o docs -d markdown $(PYTHON_MAIN_PACKAGE)
+	uv run --group docs pdoc -o docs/api -d markdown $(PYTHON_MAIN_PACKAGE)
 
-## docs-open            – Generate docs and open index.html in the default browser
+## docs-open            – Generate docs and open docs/api/index.html
 .PHONY: docs-open
 docs-open: docs
 ifeq ($(UNAME_S),Darwin)
-	open docs/index.html
+	open docs/api/index.html
+else ifeq ($(OS_NAME),windows)
+	explorer.exe docs/api/index.html
 else
-	xdg-open docs/index.html
+	xdg-open docs/api/index.html
 endif
 
 
@@ -406,11 +410,11 @@ endif
 #  Remove generated files, build artefacts, and caches.
 # ==============================================================================
 
-## clean                – Remove build artefacts and generated files (safe pre-build step)
+## clean                – Remove build artefacts and caches (safe pre-build step)
 .PHONY: clean
-clean: clean-build clean-cache clean-generated
+clean: clean-build clean-cache
 
-## clean-all            – Remove everything including generated docs
+## clean-all            – Remove build artefacts and generated API docs
 .PHONY: clean-all
 clean-all: clean clean-docs
 
@@ -431,10 +435,10 @@ clean-cache:
 	- rm -rf .ruff_cache
 	- find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
 
-## clean-docs           – Remove the generated docs/ directory
+## clean-docs           – Remove only generated API documentation
 .PHONY: clean-docs
 clean-docs:
-	- rm -rf docs
+	- rm -rf docs/api
 
 ## clean-generated      – Remove only the auto-generated Python source files
 .PHONY: clean-generated
@@ -609,7 +613,45 @@ ci-test:
 ci-validate-config:
 	python3 .mk/scripts.py validate-ci-config \
 		'$(CI_PYTHON_VERSIONS)' '$(CI_TEST_OS_MATRIX)' \
-		'$(CI_ENABLE_PYPI_PUBLISH)' '$(CI_ENABLE_HOMEBREW_PUBLISH)'
+		'$(CI_ENABLE_PYPI_PUBLISH)' '$(CI_ENABLE_HOMEBREW_PUBLISH)' \
+		'$(CI_ENABLE_DOCKERHUB_PUBLISH)' '$(CI_DOCKERHUB_IMAGE)' \
+		'$(CI_ENABLE_CHOCOLATEY_PUBLISH)' \
+		'$(CI_ENABLE_WINGET_PUBLISH)' '$(CI_ENABLE_RELEASE_DOCS)' \
+		'$(CI_BUILD_LINUX)' '$(CI_BUILD_MACOS)' '$(CI_BUILD_WINDOWS)' \
+		'$(ENABLE_WINDOWS_INSTALLER)' '$(APPS_LIST)' '$(RELEASE_ARTIFACTS)' \
+		'$(INNO_OUTPUT_DIR)/$(INNO_OUTPUT_BASE_FILENAME).exe' \
+		'$(CI_DOCKER_PUSH_LATEST)' '$(CI_HOMEBREW_LICENSE)' \
+		'$(CI_WINGET_LICENSE)' '$(CI_WINGET_LICENSE_URL)' \
+		'$(CI_HOMEBREW_HOMEPAGE)' '$(CI_HOMEBREW_TAP_REPO)' \
+		'$(CI_CHOCOLATEY_PROJECT_URL)' '$(CI_CHOCOLATEY_LICENSE_URL)' \
+		'$(CI_CHOCOLATEY_INSTALLER_URL)' '$(CI_WINGET_HOMEPAGE)' \
+		'$(CI_WINGET_INSTALLER_URL)' '$(CI_WINGET_INSTALLER_FILE)' \
+		'$(CI_WINGET_FORK_REPO)' \
+		'$(CI_WINGET_PACKAGE_IDENTIFIER)' '$(FILE_PROJECT_TOML)' \
+		'$(CI_HOMEBREW_RESOURCES_FILE)' '$(PYINSTALLER_WINDOWED)'
+	@set -eu; \
+	if [ "$(CI_BUILD_LINUX)$(CI_BUILD_MACOS)$(CI_BUILD_WINDOWS)" != "000" ]; then \
+		:; \
+		$(foreach app,$(APPS_LIST),\
+			if [ -z "$($(app)_NAME)" ]; then echo "Error: $(app)_NAME must be set when native builds are enabled."; exit 1; fi; \
+			if [ -z "$($(app)_MAIN)" ] || [ ! -f "$($(app)_MAIN)" ]; then echo "Error: $(app)_MAIN must point to an existing entry-point file."; exit 1; fi; \
+			if [ "$(CI_BUILD_MACOS)" = "1" ] && { [ -z "$($(app)_ICNS)" ] || [ ! -f "$($(app)_ICNS)" ]; }; then echo "Error: $(app)_ICNS must point to an existing .icns file for macOS builds."; exit 1; fi; \
+			if [ "$(CI_BUILD_WINDOWS)" = "1" ] && { [ -z "$($(app)_ICO)" ] || [ ! -f "$($(app)_ICO)" ]; }; then echo "Error: $(app)_ICO must point to an existing .ico file for Windows builds."; exit 1; fi; \
+		) \
+	fi; \
+	if [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
+		if [ ! -f "$(INNO_APP_ICON)" ]; then echo "Error: INNO_APP_ICON must point to an existing .ico file."; exit 1; fi; \
+		case " $(foreach app,$(APPS_LIST),dist/$($(app)_NAME)-windows.exe) " in \
+			*" $(INNO_APP_EXE) "*) ;; \
+			*) echo "Error: INNO_APP_EXE must match one of the configured PyInstaller outputs ($(foreach app,$(APPS_LIST),dist/$($(app)_NAME)-windows.exe))."; exit 1 ;; \
+		esac; \
+	fi
+
+## ci-setup-build         – Add build-only dependencies to the CI environment
+.PHONY: ci-setup-build
+ci-setup-build: ci-setup
+	@echo "[ci-setup-build] Syncing PyInstaller build dependencies"
+	uv sync --group dev --group build --python $(CI_PYTHON_VERSION) --locked
 
 ## ci-export-config       – Export CI configuration values to $GITHUB_OUTPUT
 .PHONY: ci-export-config
@@ -662,63 +704,92 @@ ci-export-config:
 .PHONY: ci-install-git-cliff
 ci-install-git-cliff:
 	@echo "[ci-install-git-cliff] Installing git-cliff via uv tool"
-	uv tool install git-cliff
+	uv tool install git-cliff==$(CI_GIT_CLIFF_VERSION)
 
 ## ci-generate-changelog  – Generate the full changelog file configured in CI_CHANGELOG_FILE
 .PHONY: ci-generate-changelog
 ci-generate-changelog:
 	@echo "[ci-generate-changelog] Writing $(CI_CHANGELOG_FILE) using $(CI_GIT_CLIFF_CONFIG)"
-	uvx git-cliff --config $(CI_GIT_CLIFF_CONFIG) --output $(CI_CHANGELOG_FILE)
+	uvx --from git-cliff==$(CI_GIT_CLIFF_VERSION) git-cliff --config $(CI_GIT_CLIFF_CONFIG) --output $(CI_CHANGELOG_FILE)
 
 ## ci-generate-release-notes – Generate latest release notes into CI_RELEASE_NOTES_FILE
 .PHONY: ci-generate-release-notes
 ci-generate-release-notes:
 	@echo "[ci-generate-release-notes] Writing $(CI_RELEASE_NOTES_FILE)"
-	uvx git-cliff --config $(CI_GIT_CLIFF_CONFIG) --latest --strip header > $(CI_RELEASE_NOTES_FILE)
-
-## ci-commit-changelog    – Commit and push changelog updates to RELEASE_CHANGELOG_TARGET_BRANCH
-.PHONY: ci-commit-changelog
-ci-commit-changelog:
-	@echo "[ci-commit-changelog] Checking whether $(CI_CHANGELOG_FILE) changed"
-	git config user.name "github-actions[bot]"
-	git config user.email "github-actions[bot]@users.noreply.github.com"
-	git add $(CI_CHANGELOG_FILE)
-	@if git diff --staged --quiet; then \
-		echo "No changes to $(CI_CHANGELOG_FILE)"; \
-	else \
-		git commit -m "chore: update changelog [skip ci]"; \
-		git fetch origin; \
-		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
-	fi
+	uvx --from git-cliff==$(CI_GIT_CLIFF_VERSION) git-cliff --config $(CI_GIT_CLIFF_CONFIG) --latest --strip header > $(CI_RELEASE_NOTES_FILE)
 
 ## ci-generate-docs       – Generate project documentation for release automation
 .PHONY: ci-generate-docs
 ci-generate-docs:
-	@echo "[ci-generate-docs] Generating docs/ for $(PYTHON_MAIN_PACKAGE)"
+	@echo "[ci-generate-docs] Generating docs/api/ for $(PYTHON_MAIN_PACKAGE)"
 	$(MAKE) --no-print-directory docs
 
-## ci-commit-docs         – Commit and push docs/ updates in a dedicated commit
-.PHONY: ci-commit-docs
-ci-commit-docs:
-	@echo "[ci-commit-docs] Checking whether docs/ changed"
-	git config user.name "github-actions[bot]"
-	git config user.email "github-actions[bot]@users.noreply.github.com"
-	git add docs/
-	@if git diff --staged --quiet; then \
-		echo "No changes to docs/"; \
+## ci-prepare-release-update-branch – Start release automation from the tagged commit
+.PHONY: ci-prepare-release-update-branch
+ci-prepare-release-update-branch:
+	@set -eu; \
+	if [ -z "$${GITHUB_REF_NAME:-}" ] || [ -z "$${GITHUB_SHA:-}" ]; then \
+		echo "Error: release tag context is missing."; exit 1; \
+	fi; \
+	TARGET_BRANCH="$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
+	PR_BRANCH="automation/release-updates-$$GITHUB_REF_NAME"; \
+	git fetch origin "refs/heads/$$TARGET_BRANCH:refs/remotes/origin/$$TARGET_BRANCH"; \
+	if ! git merge-base --is-ancestor "$$GITHUB_SHA" "origin/$$TARGET_BRANCH"; then \
+		echo "Error: release commit $$GITHUB_SHA is not contained in origin/$$TARGET_BRANCH."; \
+		exit 1; \
+	fi; \
+	git switch --create "$$PR_BRANCH" "$$GITHUB_SHA"
+
+## ci-open-release-updates-pr – Open/update a PR for generated release files
+.PHONY: ci-open-release-updates-pr
+ci-open-release-updates-pr:
+	@set -eu; \
+	if [ -z "$${GITHUB_REF_NAME:-}" ] || [ -z "$${GITHUB_SHA:-}" ]; then \
+		echo "Error: release tag context is missing."; exit 1; \
+	fi; \
+	if [ -z "$${GH_TOKEN:-}" ]; then \
+		echo "Error: GH_TOKEN is not set."; exit 1; \
+	fi; \
+	TARGET_BRANCH="$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
+	PR_BRANCH="automation/release-updates-$$GITHUB_REF_NAME"; \
+	if [ "$$(git branch --show-current)" != "$$PR_BRANCH" ]; then \
+		echo "Error: expected to run on branch $$PR_BRANCH."; exit 1; \
+	fi; \
+	git config user.name "github-actions[bot]"; \
+	git config user.email "github-actions[bot]@users.noreply.github.com"; \
+	git add -- "$(CI_CHANGELOG_FILE)"; \
+	if [ "$(CI_ENABLE_RELEASE_DOCS)" = "1" ]; then git add -A -- docs/api; fi; \
+	if git diff --cached --quiet; then \
+		echo "No generated release file changes to publish."; exit 0; \
+	fi; \
+	git commit -m "chore: update generated release files for $$GITHUB_REF_NAME"; \
+	REMOTE_REF=$$(git ls-remote origin "refs/heads/$$PR_BRANCH"); \
+	REMOTE_SHA=$${REMOTE_REF%%[[:space:]]*}; \
+	if [ -n "$$REMOTE_SHA" ]; then \
+		git push --force-with-lease="refs/heads/$$PR_BRANCH:$$REMOTE_SHA" origin "HEAD:refs/heads/$$PR_BRANCH"; \
 	else \
-		git commit -m "docs: update generated documentation [skip ci]"; \
-		git fetch origin; \
-		git push origin "HEAD:$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
+		git push origin "HEAD:refs/heads/$$PR_BRANCH"; \
+	fi; \
+	PR_NUMBER=$$(GH_TOKEN="$$GH_TOKEN" gh pr list --repo "$$GITHUB_REPOSITORY" --head "$$PR_BRANCH" --state open --json number --jq '.[0].number // empty'); \
+	if [ -n "$$PR_NUMBER" ]; then \
+		GH_TOKEN="$$GH_TOKEN" gh pr edit "$$PR_NUMBER" --repo "$$GITHUB_REPOSITORY" \
+			--title "chore: update generated files for $$GITHUB_REF_NAME" \
+			--body "Generated changelog and optional API documentation for release $$GITHUB_REF_NAME."; \
+	else \
+		GH_TOKEN="$$GH_TOKEN" gh pr create --repo "$$GITHUB_REPOSITORY" \
+			--base "$$TARGET_BRANCH" --head "$$PR_BRANCH" \
+			--title "chore: update generated files for $$GITHUB_REF_NAME" \
+			--body "Generated changelog and optional API documentation for release $$GITHUB_REF_NAME."; \
 	fi
 
 ## ci-build-release-assets – Build release assets for the current runner OS with verbose diagnostics
 .PHONY: ci-build-release-assets
 ci-build-release-assets:
-	@echo "[ci-build-release-assets] Runner OS=$(OS_NAME)"
-	@echo "[ci-build-release-assets] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"
-	@echo "[ci-build-release-assets] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"
-	@if [ "$(OS_NAME)" = "windows" ] && [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
+	@set -eu; \
+	echo "[ci-build-release-assets] Runner OS=$(OS_NAME)"; \
+	echo "[ci-build-release-assets] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"; \
+	echo "[ci-build-release-assets] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"; \
+	if [ "$(OS_NAME)" = "windows" ] && [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
 		echo "[ci-build-release-assets] Building Windows installer because ENABLE_WINDOWS_INSTALLER=1"; \
 		$(MAKE) --no-print-directory install-inno; \
 		$(MAKE) --no-print-directory build-exe-onefile; \
@@ -728,8 +799,8 @@ ci-build-release-assets:
 		$(MAKE) --no-print-directory build-exe-onefile; \
 	else \
 		echo "[ci-build-release-assets] No platform assets configured; package distributions are built once by CI."; \
-	fi
-	@$(MAKE) --no-print-directory ci-list-build-artifacts
+	fi; \
+	$(MAKE) --no-print-directory ci-list-build-artifacts
 
 ## ci-list-build-artifacts – Print the generated files used by CI and release jobs
 .PHONY: ci-list-build-artifacts
@@ -754,7 +825,8 @@ ci-list-build-artifacts:
 ## ci-verify-release-artifacts – Fail early when RELEASE_ARTIFACTS does not match generated files
 .PHONY: ci-verify-release-artifacts
 ci-verify-release-artifacts:
-	@matched=0; \
+	@set -eu; \
+	matched=0; \
 	echo "[ci-verify-release-artifacts] Checking RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"; \
 	for pattern in $(RELEASE_ARTIFACTS); do \
 		echo "[ci-verify-release-artifacts] Pattern: $$pattern"; \
@@ -771,7 +843,23 @@ ci-verify-release-artifacts:
 		echo "[ci-verify-release-artifacts] Hint: executable projects must set APPS_LIST and companion *_NAME/*_MAIN/*_ICO/*_ICNS variables in project.mk."; \
 		echo "[ci-verify-release-artifacts] Hint: installer projects usually need Output/*.exe added to RELEASE_ARTIFACTS."; \
 		exit 1; \
-	fi
+	fi; \
+	for expected in $(foreach app,$(APPS_LIST),$(if $(and $(filter macos,$(OS_NAME)),$(filter 1,$(PYINSTALLER_WINDOWED))),dist/$(or $($(app)_NAME),$(app))-macos.app,dist/$(or $($(app)_NAME),$(app))-$(OS_NAME)$(if $(filter windows,$(OS_NAME)),.exe))); do \
+		if [ ! -e "$$expected" ]; then \
+			echo "[ci-verify-release-artifacts] Error: expected app artifact $$expected was not built."; \
+			exit 1; \
+		fi; \
+		included=0; \
+		for pattern in $(RELEASE_ARTIFACTS); do \
+			for file in $$pattern; do \
+				if [ "$$file" = "$$expected" ]; then included=1; fi; \
+			done; \
+		done; \
+		if [ "$$included" -ne 1 ]; then \
+			echo "[ci-verify-release-artifacts] Error: $$expected is not included in RELEASE_ARTIFACTS."; \
+			exit 1; \
+		fi; \
+	done
 
 ## ci-smoke-build        – Install each wheel and sdist in isolation and import the package
 .PHONY: ci-smoke-build
@@ -843,7 +931,8 @@ ci-docker-build:
 .PHONY: ci-publish-dockerhub
 ci-publish-dockerhub: ci-docker-build
 	@docker push "$(CI_DOCKERHUB_IMAGE):$$DOCKER_IMAGE_TAG"
-	@if [ "$(CI_DOCKER_PUSH_LATEST)" = "1" ]; then \
+	@set -eu; \
+	if [ "$(CI_DOCKER_PUSH_LATEST)" = "1" ]; then \
 		docker tag "$(CI_DOCKERHUB_IMAGE):$$DOCKER_IMAGE_TAG" "$(CI_DOCKERHUB_IMAGE):latest"; \
 		docker push "$(CI_DOCKERHUB_IMAGE):latest"; \
 	fi
@@ -856,7 +945,8 @@ ci-build-chocolatey-assets:
 ## ci-pack-chocolatey     – Generate nuspec/install script and build a .nupkg in dist/chocolatey/
 .PHONY: ci-pack-chocolatey
 ci-pack-chocolatey:
-	@VERSION=$$(uv version --short); \
+	@set -eu; \
+	VERSION=$$(uv version --short); \
 	INSTALLER_URL=$$(uv run python -c 'import sys; print(sys.argv[1].replace("{version}", sys.argv[2]))' "$(CI_CHOCOLATEY_INSTALLER_URL)" "$$VERSION"); \
 	mkdir -p .chocolatey/tools dist/chocolatey; \
 	printf '%s\n' \
@@ -931,56 +1021,49 @@ ci-print-windows-installer-enabled: ci-windows-installer
 .PHONY: ci-print-release-artifacts
 ci-print-release-artifacts: ci-release-artifacts
 
-## ci-generate-homebrew-formula – Generate a Homebrew formula .rb file for PyPI installation
+## ci-generate-homebrew-formula – Generate a Homebrew formula with the published PyPI source checksum
 .PHONY: ci-generate-homebrew-formula
 ci-generate-homebrew-formula:
-	@VERSION=$$(uv version --short); \
-	PKG_NAME=$$(python3 -c 'from pathlib import Path; import tomllib; data=tomllib.loads(Path("$(FILE_PROJECT_TOML)").read_text(encoding="utf-8")); print(data["project"]["name"])'); \
-	mkdir -p dist/homebrew; \
-	printf '%s\n' \
-		'class $(shell echo $(CI_HOMEBREW_FORMULA_NAME) | python3 -c "import sys; print(sys.stdin.read().strip().replace(\"-\",\" \").title().replace(\" \",\"\"))") < Formula' \
-		'  desc "$(CI_HOMEBREW_DESCRIPTION)"' \
-		'  homepage "$(CI_HOMEBREW_HOMEPAGE)"' \
-		'  url "https://pypi.io/packages/source/'"$${PKG_NAME:0:1}"'/'"$$PKG_NAME"'/'"$$PKG_NAME"'-'"$$VERSION"'.tar.gz"' \
-		'  license "$(CI_HOMEBREW_LICENSE)"' \
-		'' \
-		'  depends_on "python@$(CI_PYTHON_VERSION)"' \
-		'' \
-		'  def install' \
-		'    virtualenv_install_with_resources' \
-		'  end' \
-		'' \
-		'  test do' \
-		'    system bin/"$(CI_HOMEBREW_FORMULA_NAME)", "--version"' \
-		'  end' \
-		'end' > dist/homebrew/$(CI_HOMEBREW_FORMULA_NAME).rb; \
-	echo "[ci-generate-homebrew-formula] Generated dist/homebrew/$(CI_HOMEBREW_FORMULA_NAME).rb (version $$VERSION)"
+	@set -eu; \
+	VERSION=$$(uv version --short); \
+	uv run python .mk/scripts.py gen-homebrew-formula \
+		"$(FILE_PROJECT_TOML)" \
+		"dist/homebrew/$(CI_HOMEBREW_FORMULA_NAME).rb" \
+		"$$VERSION" \
+		"$(CI_HOMEBREW_FORMULA_NAME)" \
+		"$(CI_HOMEBREW_DESCRIPTION)" \
+		"$(CI_HOMEBREW_HOMEPAGE)" \
+		"$(CI_HOMEBREW_LICENSE)" \
+		"$(CI_PYTHON_VERSION)" \
+		"$(CI_HOMEBREW_EXECUTABLE)" $(if $(strip $(CI_HOMEBREW_RESOURCES_FILE)),--resources-file "$(CI_HOMEBREW_RESOURCES_FILE)",)
 
-## ci-publish-homebrew    – Push generated formula to the Homebrew tap repository
+## ci-publish-homebrew – Push generated formula to the Homebrew tap repository
 .PHONY: ci-publish-homebrew
 ci-publish-homebrew:
-	@if [ -z "$$HOMEBREW_TAP_TOKEN" ]; then \
-		echo "Error: HOMEBREW_TAP_TOKEN is not set."; \
-		exit 1; \
-	fi
-	@FORMULA="dist/homebrew/$(CI_HOMEBREW_FORMULA_NAME).rb"; \
+	@set -eu; \
+	if [ -z "$${HOMEBREW_TAP_TOKEN:-}" ]; then \
+		echo "Error: HOMEBREW_TAP_TOKEN is not set."; exit 1; \
+	fi; \
+	FORMULA="dist/homebrew/$(CI_HOMEBREW_FORMULA_NAME).rb"; \
 	if [ ! -f "$$FORMULA" ]; then \
-		echo "Error: $$FORMULA not found. Run make ci-generate-homebrew-formula first."; \
-		exit 1; \
+		echo "Error: $$FORMULA not found. Run make ci-generate-homebrew-formula first."; exit 1; \
 	fi; \
 	VERSION=$$(uv version --short); \
 	CLONE_DIR=$$(mktemp -d); \
+	trap 'rm -rf "$$CLONE_DIR"' EXIT; \
 	echo "[ci-publish-homebrew] Cloning tap $(CI_HOMEBREW_TAP_REPO)"; \
 	git clone "https://x-access-token:$$HOMEBREW_TAP_TOKEN@github.com/$(CI_HOMEBREW_TAP_REPO).git" "$$CLONE_DIR"; \
 	mkdir -p "$$CLONE_DIR/Formula"; \
 	cp "$$FORMULA" "$$CLONE_DIR/Formula/$(CI_HOMEBREW_FORMULA_NAME).rb"; \
-	cd "$$CLONE_DIR" && \
-		git config user.name "github-actions[bot]" && \
-		git config user.email "github-actions[bot]@users.noreply.github.com" && \
-		git add Formula/$(CI_HOMEBREW_FORMULA_NAME).rb && \
-		git commit -m "$(CI_HOMEBREW_FORMULA_NAME): update to $$VERSION" && \
-		git push; \
-	rm -rf "$$CLONE_DIR"; \
+	cd "$$CLONE_DIR"; \
+	git config user.name "github-actions[bot]"; \
+	git config user.email "github-actions[bot]@users.noreply.github.com"; \
+	git add "Formula/$(CI_HOMEBREW_FORMULA_NAME).rb"; \
+	if git diff --cached --quiet; then \
+		echo "[ci-publish-homebrew] Formula is already current for version $$VERSION."; exit 0; \
+	fi; \
+	git commit -m "$(CI_HOMEBREW_FORMULA_NAME): update to $$VERSION"; \
+	git push; \
 	echo "[ci-publish-homebrew] Formula pushed to $(CI_HOMEBREW_TAP_REPO)"
 
 ## ci-build-winget-assets  – Build Windows artefacts consumed by the WinGet manifests
@@ -1000,11 +1083,12 @@ ci-generate-winget-manifests:
 	INSTALLER_URL=$$(uv run python -c 'import sys; print(sys.argv[1].replace("{version}", sys.argv[2]))' "$(CI_WINGET_INSTALLER_URL)" "$$VERSION"); \
 	printf '%s\n' \
 		'from hashlib import sha256' \
+		'import json' \
 		'from pathlib import Path' \
 		'import sys' \
 		'' \
 		'def q(value: str) -> str:' \
-		'    return f"\"{value.replace(chr(34), chr(92) + chr(34))}\""' \
+		'    return json.dumps(value, ensure_ascii=False)' \
 		'' \
 		'version = sys.argv[1]' \
 		'package_identifier = sys.argv[2]' \
@@ -1026,6 +1110,7 @@ ci-generate-winget-manifests:
 		'root.mkdir(parents=True, exist_ok=True)' \
 		'installer_sha = sha256(installer_path.read_bytes()).hexdigest().upper()' \
 		'version_lines = [' \
+		'    f"# yaml-language-server: $$schema=https://aka.ms/winget-manifest.version.{manifest_version}.schema.json",' \
 		'    f"PackageIdentifier: {q(package_identifier)}",' \
 		'    f"PackageVersion: {q(version)}",' \
 		'    f"DefaultLocale: {q(package_locale)}",' \
@@ -1033,6 +1118,7 @@ ci-generate-winget-manifests:
 		'    f"ManifestVersion: {q(manifest_version)}",' \
 		']' \
 		'default_locale_lines = [' \
+		'    f"# yaml-language-server: $$schema=https://aka.ms/winget-manifest.defaultLocale.{manifest_version}.schema.json",' \
 		'    f"PackageIdentifier: {q(package_identifier)}",' \
 		'    f"PackageVersion: {q(version)}",' \
 		'    f"PackageLocale: {q(package_locale)}",' \
@@ -1052,6 +1138,7 @@ ci-generate-winget-manifests:
 		'    f"ManifestVersion: {q(manifest_version)}",' \
 		'])' \
 		'installer_lines = [' \
+		'    f"# yaml-language-server: $$schema=https://aka.ms/winget-manifest.installer.{manifest_version}.schema.json",' \
 		'    f"PackageIdentifier: {q(package_identifier)}",' \
 		'    f"PackageVersion: {q(version)}",' \
 		'    "Installers:",' \
@@ -1101,52 +1188,56 @@ ci-validate-winget-manifests:
 		"$$WINGET_BIN" validate "$$MANIFEST_DIR"; \
 	fi
 
-## ci-publish-winget      – Push generated manifests to your winget-pkgs fork and open a PR
+## ci-publish-winget – Push generated manifests to your winget-pkgs fork and open/update a PR
 .PHONY: ci-publish-winget
 ci-publish-winget:
-	@if [ -z "$$WINGET_GITHUB_TOKEN" ]; then \
-		echo "Error: WINGET_GITHUB_TOKEN is not set."; \
-		exit 1; \
-	fi
-	@VERSION=$$(uv version --short); \
+	@set -eu; \
+	if [ -z "$${WINGET_GITHUB_TOKEN:-}" ]; then \
+		echo "Error: WINGET_GITHUB_TOKEN is not set."; exit 1; \
+	fi; \
+	VERSION=$$(uv version --short); \
 	SOURCE_DIR=$$(uv run python -c 'import sys; publisher, app = sys.argv[1].split(".", 1); print(f"dist/winget/manifests/{publisher[0].lower()}/{publisher}/{app}/{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
 	TARGET_PATH=$$(uv run python -c 'import sys; publisher, app = sys.argv[1].split(".", 1); print(f"manifests/{publisher[0].lower()}/{publisher}/{app}/{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
 	BRANCH=$$(uv run python -c 'import re, sys; slug = re.sub(r"[^A-Za-z0-9]+", "-", sys.argv[1]).strip("-").lower(); print(f"winget-{slug}-{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
 	FORK_REPO="$(CI_WINGET_FORK_REPO)"; \
 	FORK_OWNER=$${FORK_REPO%%/*}; \
 	if [ ! -d "$$SOURCE_DIR" ]; then \
-		echo "Error: $$SOURCE_DIR not found. Run make ci-generate-winget-manifests first."; \
-		exit 1; \
+		echo "Error: $$SOURCE_DIR not found. Run make ci-generate-winget-manifests first."; exit 1; \
 	fi; \
 	CLONE_DIR=$$(mktemp -d); \
+	trap 'rm -rf "$$CLONE_DIR"' EXIT; \
 	echo "[ci-publish-winget] Cloning fork $$FORK_REPO"; \
 	git clone --filter=blob:none --no-checkout "https://x-access-token:$$WINGET_GITHUB_TOKEN@github.com/$$FORK_REPO.git" "$$CLONE_DIR"; \
 	cd "$$CLONE_DIR"; \
 	git sparse-checkout init --cone; \
 	git sparse-checkout set "$$TARGET_PATH"; \
-	git checkout -B "$$BRANCH"; \
+	DEFAULT_BRANCH=$$(GH_TOKEN="$$WINGET_GITHUB_TOKEN" gh repo view "$$FORK_REPO" --json defaultBranchRef --jq '.defaultBranchRef.name'); \
+	if git ls-remote --exit-code --heads origin "$$BRANCH" >/dev/null 2>&1; then \
+		git fetch origin "refs/heads/$$BRANCH:refs/remotes/origin/$$BRANCH"; \
+		git checkout -B "$$BRANCH" "refs/remotes/origin/$$BRANCH"; \
+	else \
+		git fetch origin "refs/heads/$$DEFAULT_BRANCH:refs/remotes/origin/$$DEFAULT_BRANCH"; \
+		git checkout -B "$$BRANCH" "refs/remotes/origin/$$DEFAULT_BRANCH"; \
+	fi; \
 	mkdir -p "$$TARGET_PATH"; \
 	cp "$$SOURCE_DIR"/* "$$TARGET_PATH"/; \
 	git config user.name "github-actions[bot]"; \
 	git config user.email "github-actions[bot]@users.noreply.github.com"; \
 	git add "$$TARGET_PATH"; \
 	if git diff --cached --quiet; then \
-		echo "[ci-publish-winget] No manifest changes to publish."; \
-		rm -rf "$$CLONE_DIR"; \
-		exit 0; \
+		echo "[ci-publish-winget] Manifests are already current for version $$VERSION."; exit 0; \
 	fi; \
 	git commit -m "Add $(CI_WINGET_PACKAGE_IDENTIFIER) version $$VERSION"; \
 	git push --set-upstream origin "$$BRANCH"; \
-	EXISTING_PR_COUNT=$$(GH_TOKEN="$$WINGET_GITHUB_TOKEN" gh pr list --repo microsoft/winget-pkgs --head "$$FORK_OWNER:$$BRANCH" --json number --jq 'length'); \
-	if [ "$$EXISTING_PR_COUNT" != "0" ]; then \
-		echo "[ci-publish-winget] A pull request for $$BRANCH already exists."; \
-		rm -rf "$$CLONE_DIR"; \
-		exit 0; \
+	EXISTING_PR=$$(GH_TOKEN="$$WINGET_GITHUB_TOKEN" gh pr list --repo microsoft/winget-pkgs --head "$$FORK_OWNER:$$BRANCH" --state open --json number --jq '.[0].number // empty'); \
+	if [ -n "$$EXISTING_PR" ]; then \
+		GH_TOKEN="$$WINGET_GITHUB_TOKEN" gh pr edit "$$EXISTING_PR" --repo microsoft/winget-pkgs \
+			--title "Add $(CI_WINGET_PACKAGE_IDENTIFIER) version $$VERSION" \
+			--body "Automated manifest submission generated from the template release workflow."; \
+	else \
+		GH_TOKEN="$$WINGET_GITHUB_TOKEN" gh pr create --repo microsoft/winget-pkgs \
+			--head "$$FORK_OWNER:$$BRANCH" \
+			--title "Add $(CI_WINGET_PACKAGE_IDENTIFIER) version $$VERSION" \
+			--body "Automated manifest submission generated from the template release workflow."; \
 	fi; \
-	GH_TOKEN="$$WINGET_GITHUB_TOKEN" gh pr create \
-		--repo microsoft/winget-pkgs \
-		--head "$$FORK_OWNER:$$BRANCH" \
-		--title "Add $(CI_WINGET_PACKAGE_IDENTIFIER) version $$VERSION" \
-		--body "Automated manifest submission generated from the template release workflow."; \
-	rm -rf "$$CLONE_DIR"; \
-	echo "[ci-publish-winget] Manifest branch pushed and PR created for $(CI_WINGET_PACKAGE_IDENTIFIER) $$VERSION"
+	echo "[ci-publish-winget] Manifest branch pushed and PR updated for $(CI_WINGET_PACKAGE_IDENTIFIER) $$VERSION"
