@@ -150,6 +150,10 @@ CI_DOCKERHUB_IMAGE ?= your-dockerhub-user/your-image
 # Path to the Dockerfile used for image builds.
 CI_DOCKERFILE ?= Dockerfile
 
+# Command that starts the application inside the container.
+# Examples: python -m myapp, myapp
+CI_DOCKER_ENTRYPOINT ?= python -m $(PYTHON_MAIN_PACKAGE)
+
 # Python and uv versions used by the sample Dockerfile.
 CI_DOCKER_PYTHON_VERSION ?= $(CI_PYTHON_VERSION)
 CI_DOCKER_UV_VERSION ?= $(CI_UV_VERSION)
@@ -209,14 +213,14 @@ CI_HOMEBREW_HOMEPAGE ?= https://github.com/your-org/your-repo
 # Short description shown by `brew info`.
 CI_HOMEBREW_DESCRIPTION ?= A Python CLI application
 
-# SPDX license identifier for the formula.
+# License code used in the formula, for example MIT.
 CI_HOMEBREW_LICENSE ?=
 
 # Optional console script used for the formula's `--version` smoke check.
 # Leave empty to verify the installed distribution metadata instead.
 CI_HOMEBREW_EXECUTABLE ?=
 
-# Optional Ruby resource blocks for the formula's locked Python dependencies.
+# Optional file listing download details for the Python packages your app needs.
 # Required when pyproject.toml declares runtime dependencies.
 CI_HOMEBREW_RESOURCES_FILE ?=
 
@@ -354,9 +358,9 @@ PYINSTALLER_WINDOWED ?= 0
 # ==============================================================================
 #  7. TOOL CONFIGURATION FILES
 #
-#  Qui si configurano i file di configurazione per i tool di qualità.
+#  Paths to the configuration files used by the quality tools.
 # ==============================================================================
 
-# Configurazione file per Ruff e Ty
+# Configuration files used by Ruff and ty.
 RUFF_CONFIG_FILE ?= ruff.toml
 TY_CONFIG_FILE ?= ty.toml
