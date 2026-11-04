@@ -163,7 +163,7 @@ gen-project-module:
 
 ## gen-logo-icons SVG=<path>  – Convert a .svg file to .ico/.png/.jpg/.icns in all standard sizes
 #
-#  Requires skia-python and Pillow from the dev dependency group.
+#  Requires skia-python and Pillow from the graphics dependency group.
 #
 #  Example:
 #      make gen-logo-icons SVG=resources/logo.svg
@@ -789,6 +789,9 @@ ci-build-release-assets:
 	echo "[ci-build-release-assets] Runner OS=$(OS_NAME)"; \
 	echo "[ci-build-release-assets] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"; \
 	echo "[ci-build-release-assets] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"; \
+	if [ -n "$(strip $(APPS_LIST))" ]; then \
+		$(MAKE) --no-print-directory gen-project-module; \
+	fi; \
 	if [ "$(OS_NAME)" = "windows" ] && [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
 		echo "[ci-build-release-assets] Building Windows installer because ENABLE_WINDOWS_INSTALLER=1"; \
 		$(MAKE) --no-print-directory install-inno; \
@@ -799,6 +802,15 @@ ci-build-release-assets:
 		$(MAKE) --no-print-directory build-exe-onefile; \
 	else \
 		echo "[ci-build-release-assets] No platform assets configured; package distributions are built once by CI."; \
+	fi; \
+	if [ "$(OS_NAME)" = "macos" ] && [ "$(PYINSTALLER_WINDOWED)" = "1" ] && [ -n "$(strip $(APPS_LIST))" ]; then \
+		echo "[ci-build-release-assets] Archiving windowed macOS app bundles for release"; \
+		$(foreach app,$(APPS_LIST),\
+			APP_DIR="dist/$($(app)_NAME)-macos.app"; \
+			if [ ! -d "$$APP_DIR" ]; then echo "Error: expected macOS app bundle $$APP_DIR was not built."; exit 1; fi; \
+			ditto -c -k --sequesterRsrc --keepParent "$$APP_DIR" "$$APP_DIR.zip"; \
+			rm -rf "$$APP_DIR"; \
+		) \
 	fi; \
 	$(MAKE) --no-print-directory ci-list-build-artifacts
 
@@ -844,7 +856,7 @@ ci-verify-release-artifacts:
 		echo "[ci-verify-release-artifacts] Hint: installer projects usually need Output/*.exe added to RELEASE_ARTIFACTS."; \
 		exit 1; \
 	fi; \
-	for expected in $(foreach app,$(APPS_LIST),$(if $(and $(filter macos,$(OS_NAME)),$(filter 1,$(PYINSTALLER_WINDOWED))),dist/$(or $($(app)_NAME),$(app))-macos.app,dist/$(or $($(app)_NAME),$(app))-$(OS_NAME)$(if $(filter windows,$(OS_NAME)),.exe))); do \
+	for expected in $(foreach app,$(APPS_LIST),$(if $(and $(filter macos,$(OS_NAME)),$(filter 1,$(PYINSTALLER_WINDOWED))),dist/$(or $($(app)_NAME),$(app))-macos.app.zip,dist/$(or $($(app)_NAME),$(app))-$(OS_NAME)$(if $(filter windows,$(OS_NAME)),.exe))); do \
 		if [ ! -e "$$expected" ]; then \
 			echo "[ci-verify-release-artifacts] Error: expected app artifact $$expected was not built."; \
 			exit 1; \

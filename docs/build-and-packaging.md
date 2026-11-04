@@ -75,7 +75,7 @@ CI builds and smoke-tests the wheel and sdist once, then uploads them to the Git
 - projects with installers should usually add `Output/*.exe`
 - projects with extra binaries should add the matching output paths explicitly
 
-Enabled platform jobs print generated files and verify that every configured app output exists and is included in `RELEASE_ARTIFACTS`. For a windowed macOS app, the output is a `.app` bundle directory.
+Enabled platform jobs print generated files and verify that every configured app output exists and is included in `RELEASE_ARTIFACTS`. For release uploads, a windowed macOS `.app` bundle is archived as a `.app.zip` file.
 
 ## Logo and icon assets
 
