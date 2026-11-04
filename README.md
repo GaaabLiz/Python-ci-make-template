@@ -18,6 +18,7 @@ This template gives you:
 1. Create a new repository from this template, or copy the core files into your project.
 2. Update `pyproject.toml` with your package metadata and dependencies.
 3. Update `project.mk` with your package name, supported Python/OS matrices, test command, and release asset settings.
+   Set the real license and publisher URLs before enabling any registry publisher.
 4. Install development dependencies with `make install-dev`.
 5. Run `make qa` and `make build` before pushing changes.
 6. If you build executables or installers, configure `APPS_LIST`, installer variables, `CI_BUILD_*`, and `RELEASE_ARTIFACTS`.
@@ -62,5 +63,7 @@ The template keeps one source of truth:
 - release automation also uses `make`
 
 The release workflow runs the reusable CI gate first and builds the Python distributions once. Optional PyPI, Docker Hub, Chocolatey, Homebrew, and WinGet jobs run only after that gate and the configured asset builds succeed.
+
+Release automation proposes changelog and optional API documentation updates through a pull request to the configured target branch.
 
 That keeps project setup predictable and reduces duplication between shell scripts, workflow YAML, and developer instructions.

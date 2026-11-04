@@ -65,6 +65,8 @@ Generate API documentation with pdoc:
 make docs
 ```
 
+Generated API pages go to `docs/api/`; authored guides in `docs/` are preserved by `make clean-all`.
+
 Open generated docs locally:
 
 ```bash

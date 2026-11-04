@@ -9,6 +9,7 @@ Set the project name, version, description, supported Python range, runtime depe
 The sample dependency groups keep optional developer tools separate:
 
 - dev: pytest, pytest-cov, and Ruff, installed by CI
+- build: PyInstaller, installed only for native executable release jobs
 - typing: ty, selected when type checking is enabled
 - docs: pdoc, selected when generating API documentation
 - graphics: SVG and icon conversion libraries, selected by logo generation
@@ -33,6 +34,7 @@ CI tests always run. The former CI_RUN_TESTS skip toggle has been removed so a s
 - CI_PYTHON_VERSIONS: JSON array of supported Python versions tested in the matrix
 - CI_TEST_OS_MATRIX: JSON array of runner labels, such as ["ubuntu-latest"] for Linux-only projects
 - CI_UV_VERSION: exact uv version used by GitHub Actions
+- CI_GIT_CLIFF_VERSION: exact changelog generator version used by release automation
 - CI_QUALITY_TARGETS: Make targets run in CI; default is lint and format-check. Add type-check to opt into ty.
 
 Keep these values aligned with requires-python in pyproject.toml. The repository example supports Python 3.11 and newer, and tests Python 3.11 through 3.14 by default. Update the minimum version, Ruff target, and matrix together when adapting the template.
@@ -45,7 +47,9 @@ The CI gate builds and smoke-tests wheel and sdist once. Those verified files ar
 - CI_BUILD_LINUX, CI_BUILD_MACOS, CI_BUILD_WINDOWS: default to 0; set to 1 only when building application assets on that runner
 - ENABLE_WINDOWS_INSTALLER: enable Inno Setup packaging on Windows
 
-For package-only projects, leave all CI_BUILD_* values at 0. For application releases, configure APPS_LIST and its entry variables, set the required platform flags, and include produced files in RELEASE_ARTIFACTS.
+For package-only projects, leave all CI_BUILD_* values at 0. For application releases, configure APPS_LIST and its entry variables, set the required platform flags, and include produced files in RELEASE_ARTIFACTS. `PYINSTALLER_WINDOWED=1` is only for GUI apps; command-line apps should keep the console enabled.
+
+Configuration validation checks that each enabled app has a name and an existing entry-point file, plus the platform icon files needed by macOS and Windows builds. When Inno Setup is enabled, `INNO_APP_EXE` must match one configured Windows executable and `INNO_APP_ICON` must exist.
 
 ### Executables
 
@@ -65,6 +69,7 @@ Set APPS_LIST only when producing PyInstaller executables. For each entry, defin
 - CI_ENABLE_WINGET_PUBLISH — see publishing-winget.md
 
 Publication jobs are called from release.yml after the CI gate and asset builds. Keep flags disabled until their GitHub environments and required secrets are configured.
+The configuration validator rejects placeholder publisher URLs and missing license metadata when a publisher is enabled. Set real project URLs, package identifiers, and SPDX licenses in `project.mk` first.
 
 ## First setup
 

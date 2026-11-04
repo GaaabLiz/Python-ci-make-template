@@ -21,6 +21,9 @@ Artifacts are written to `dist/`.
 ## PyInstaller executables
 
 If `APPS_LIST` is configured, you can build executables as well.
+Install the optional build tools with `make install-pyinstaller`. CI installs the separate `build` dependency group automatically for native release jobs.
+
+The default keeps the console visible, which suits CLI programs. Set `PYINSTALLER_WINDOWED=1` only for GUI apps.
 
 One-folder executables:
 
@@ -72,7 +75,7 @@ CI builds and smoke-tests the wheel and sdist once, then uploads them to the Git
 - projects with installers should usually add `Output/*.exe`
 - projects with extra binaries should add the matching output paths explicitly
 
-Enabled platform jobs print generated files and fail early if `RELEASE_ARTIFACTS` matches nothing.
+Enabled platform jobs print generated files and verify that every configured app output exists and is included in `RELEASE_ARTIFACTS`. For a windowed macOS app, the output is a `.app` bundle directory.
 
 ## Logo and icon assets
 
