@@ -272,13 +272,11 @@ def convert_logo(svg_path: Path) -> int:
     print()
 
     print("ICO file:")
-    ico_images = [_resize(base_img, size) for size in ICO_SIZES]
     ico_path = out_dir / f"{stem}.ico"
-    ico_images[0].save(
+    base_img.save(
         ico_path,
         format="ICO",
         sizes=[(size, size) for size in ICO_SIZES],
-        append_images=ico_images[1:],
     )
     print(f"  {ico_path}")
     print()
