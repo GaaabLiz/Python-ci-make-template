@@ -7,17 +7,22 @@
 #  Build:   docker build -t myapp .
 #  Run:     docker run --rm myapp --help
 #
-#  Customize the ENTRYPOINT at the bottom to match your package's CLI command.
+#  Set the package and startup command in project.mk. The shared Make target
+#  passes those settings to this Dockerfile as build arguments.
 # ==============================================================================
 
 # Versions default to the settings in project.mk, passed by `make ci-publish-dockerhub`.
 ARG PYTHON_VERSION=3.14
 ARG UV_VERSION=0.13.6
+ARG PYTHON_MAIN_PACKAGE=myapp
+ARG CI_DOCKER_ENTRYPOINT="python -m myapp"
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
 FROM python:${PYTHON_VERSION}-slim AS builder
+
+ARG PYTHON_MAIN_PACKAGE
 
 # Install uv for fast dependency resolution
 COPY --from=uv /uv /usr/local/bin/uv
@@ -32,12 +37,15 @@ RUN uv sync --no-dev --no-install-project --frozen
 
 # Copy source and build
 COPY . .
-RUN python .mk/scripts.py gen-project-module pyproject.toml myapp/project.py
+RUN python .mk/scripts.py gen-project-module pyproject.toml "${PYTHON_MAIN_PACKAGE}/project.py"
 RUN uv sync --no-dev --locked
 
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim AS runtime
+
+ARG CI_DOCKER_ENTRYPOINT
+ENV CI_DOCKER_ENTRYPOINT="${CI_DOCKER_ENTRYPOINT}"
 
 WORKDIR /app
 
@@ -51,5 +59,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 RUN useradd --create-home appuser
 USER appuser
 
-# Replace the module name if PYTHON_MAIN_PACKAGE changes in project.mk.
-ENTRYPOINT ["python", "-m", "myapp"]
+ENTRYPOINT ["/bin/sh", "-c", "exec $CI_DOCKER_ENTRYPOINT \"$@\"", "--"]

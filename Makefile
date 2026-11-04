@@ -577,6 +577,7 @@ ci-log-config:
 	@echo "[ci-log-config] CI_UV_VERSION=$(CI_UV_VERSION)"
 	@echo "[ci-log-config] CI_QUALITY_TARGETS=$(CI_QUALITY_TARGETS)"
 	@echo "[ci-log-config] CI_TEST_COMMAND=$(CI_TEST_COMMAND)"
+	@echo "[ci-log-config] CI_DOCKER_ENTRYPOINT=$(CI_DOCKER_ENTRYPOINT)"
 	@echo "[ci-log-config] APPS_LIST=$(if $(strip $(APPS_LIST)),$(APPS_LIST),<empty>)"
 	@echo "[ci-log-config] ENABLE_WINDOWS_INSTALLER=$(ENABLE_WINDOWS_INSTALLER)"
 	@echo "[ci-log-config] RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"
@@ -936,6 +937,8 @@ ci-docker-build:
 		-f "$(CI_DOCKERFILE)" \
 		--build-arg PYTHON_VERSION="$(CI_DOCKER_PYTHON_VERSION)" \
 		--build-arg UV_VERSION="$(CI_DOCKER_UV_VERSION)" \
+		--build-arg PYTHON_MAIN_PACKAGE="$(PYTHON_MAIN_PACKAGE)" \
+		--build-arg CI_DOCKER_ENTRYPOINT="$(CI_DOCKER_ENTRYPOINT)" \
 		-t "$(CI_DOCKERHUB_IMAGE):$$DOCKER_IMAGE_TAG" \
 		"$(CI_DOCKER_BUILD_CONTEXT)"
 
