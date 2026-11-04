@@ -19,6 +19,9 @@ dev = [
 	"pytest-cov",
 	"ruff",
 ]
+build = [
+	"pyinstaller",
+]
 typing = [
 	"ty",
 ]

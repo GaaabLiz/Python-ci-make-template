@@ -64,7 +64,7 @@ FILE_PROJECT_PY_GENERATED ?= $(PYTHON_MAIN_PACKAGE)/project.py
 #  Variables consumed by CI/CD workflows and the release helper targets.
 # ==============================================================================
 
-# Git branch that receives the updated CHANGELOG after each release run.
+# Base branch for the pull request containing generated release files.
 RELEASE_CHANGELOG_TARGET_BRANCH ?= main
 
 # Set to 1 to enable the Windows installer step in CI, or 0 to skip it.
@@ -108,8 +108,8 @@ CI_QUALITY_TARGETS ?= lint format-check
 # Override this for unittest, nox, tox, or a project-specific test runner.
 CI_TEST_COMMAND ?= uv run pytest $(TESTS_PATH)
 
-# Enable/disable docs generation during the release workflow.
-# When enabled, CI runs `make docs` and commits docs/ in a separate commit.
+# Enable/disable API docs generation during the release workflow.
+# When enabled, CI includes docs/api/ in the generated-files pull request.
 CI_ENABLE_RELEASE_DOCS ?= 0
 
 # Enable/disable per-platform executable/installer builds in the release workflow.
@@ -132,6 +132,9 @@ CI_RELEASE_NOTES_FILE ?= RELEASE_NOTES.md
 
 # git-cliff configuration file used by CI release targets.
 CI_GIT_CLIFF_CONFIG ?= cliff.toml
+
+# Pin the changelog generator so tag releases use reproducible tooling.
+CI_GIT_CLIFF_VERSION ?= 2.14.2
 
 # Enable/disable Docker image publication to Docker Hub on release tags.
 # Keep this at 0 until Docker Hub repository and GitHub secrets are configured.
@@ -207,7 +210,15 @@ CI_HOMEBREW_HOMEPAGE ?= https://github.com/your-org/your-repo
 CI_HOMEBREW_DESCRIPTION ?= A Python CLI application
 
 # SPDX license identifier for the formula.
-CI_HOMEBREW_LICENSE ?= MIT
+CI_HOMEBREW_LICENSE ?=
+
+# Optional console script used for the formula's `--version` smoke check.
+# Leave empty to verify the installed distribution metadata instead.
+CI_HOMEBREW_EXECUTABLE ?=
+
+# Optional Ruby resource blocks for the formula's locked Python dependencies.
+# Required when pyproject.toml declares runtime dependencies.
+CI_HOMEBREW_RESOURCES_FILE ?=
 
 # Enable/disable automated publication of WinGet manifests on version tags.
 # Keep this at 0 until WINGET_GITHUB_TOKEN is configured in GitHub secrets.
@@ -229,8 +240,8 @@ CI_WINGET_PACKAGE_NAME ?= $(INNO_APP_NAME)
 CI_WINGET_PUBLISHER ?= $(INNO_APP_PUBLISHER)
 CI_WINGET_PACKAGE_LOCALE ?= en-US
 CI_WINGET_SHORT_DESCRIPTION ?= Windows installer for $(INNO_APP_NAME)
-CI_WINGET_LICENSE ?= MIT
-CI_WINGET_LICENSE_URL ?= https://github.com/your-org/your-repo/blob/main/LICENSE
+CI_WINGET_LICENSE ?=
+CI_WINGET_LICENSE_URL ?=
 CI_WINGET_HOMEPAGE ?= https://github.com/your-org/your-repo
 CI_WINGET_TAGS ?= python cli
 
@@ -266,7 +277,7 @@ INNO_APP_PUBLISHER ?= Your Company
 
 # Relative path (from repo root) to the app icon used by SetupIconFile.
 # Must point to a .ico file for Windows installers.
-INNO_APP_ICON ?= resources/icon.ico
+INNO_APP_ICON ?= resources/logo.ico
 
 # Relative path to the one-file executable produced by build-exe-onefile.
 # This is the binary that Inno Setup will package.
@@ -306,21 +317,24 @@ INNO_SOLID_COMPRESSION ?= yes
 # Set it only when you want CI/release jobs to build PyInstaller executables too.
 APPS_LIST ?=
 
+# Set to 1 only for GUI apps; CLI applications should keep a visible console.
+PYINSTALLER_WINDOWED ?= 0
+
 # ── Template – copy and fill in one block per entry in APPS_LIST ──────────────
 #
 # Replace <id> with the actual identifier (must match the entry in APPS_LIST).
 #
 #   <id>_NAME  := <id>                            # Output binary name (no extension)
 #   <id>_MAIN  := $(PYTHON_MAIN_PACKAGE)/cli.py   # Entry-point script for PyInstaller
-#   <id>_ICO   := resources/icon.ico              # Windows icon (.ico)
-#   <id>_ICNS  := resources/icon.icns             # macOS  icon (.icns)
+#   <id>_ICO   := resources/logo.ico              # Windows icon (.ico)
+#   <id>_ICNS  := resources/logo.icns             # macOS  icon (.icns)
 #
 # Example (single CLI app):
 #   APPS_LIST      := myapp
 #   myapp_NAME     := myapp
 #   myapp_MAIN     := myapp/__main__.py
-#   myapp_ICO      := resources/icon.ico
-#   myapp_ICNS     := resources/icon.icns
+#   myapp_ICO      := resources/logo.ico
+#   myapp_ICNS     := resources/logo.icns
 
 
 # ==============================================================================
