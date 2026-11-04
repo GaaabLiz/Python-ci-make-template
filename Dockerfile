@@ -25,13 +25,14 @@ COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 
 # Copy dependency metadata first (layer caching)
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock ./
 
 # Install production dependencies only
 RUN uv sync --no-dev --no-install-project --frozen
 
 # Copy source and build
 COPY . .
+RUN python .mk/scripts.py gen-project-module pyproject.toml myapp/project.py
 RUN uv sync --no-dev --locked
 
 
@@ -50,5 +51,5 @@ ENV PATH="/app/.venv/bin:$PATH"
 RUN useradd --create-home appuser
 USER appuser
 
-# Replace "myapp" with your package's actual CLI entry point
-ENTRYPOINT ["myapp"]
+# Replace the module name if PYTHON_MAIN_PACKAGE changes in project.mk.
+ENTRYPOINT ["python", "-m", "myapp"]

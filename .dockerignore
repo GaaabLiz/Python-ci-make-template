@@ -1,0 +1,29 @@
+# Local environments and secrets
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Version control and editor state
+.git/
+.idea/
+.run/
+.vscode/
+
+# Python and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ty_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+Output/
