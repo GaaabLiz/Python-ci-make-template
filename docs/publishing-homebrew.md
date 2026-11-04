@@ -13,6 +13,7 @@ Before publishing to Homebrew, your project must:
 1. Already be published on PyPI, because the generated formula installs from PyPI with `pip`.
 2. Have `CI_ENABLE_PYPI_PUBLISH=1` configured in `project.mk`.
 3. Have at least one successful PyPI release before Homebrew publication is enabled.
+4. If the project has runtime dependencies, keep pinned Homebrew `resource` blocks in a file and set `CI_HOMEBREW_RESOURCES_FILE` to that path. The config check prevents publishing a formula that omits them.
 
 Configure PyPI Trusted Publishing in the release workflow before enabling Homebrew.
 
@@ -42,8 +43,11 @@ CI_HOMEBREW_TAP_REPO ?= acme/homebrew-tap
 CI_HOMEBREW_FORMULA_NAME ?= myapp
 CI_HOMEBREW_HOMEPAGE ?= https://github.com/acme/myapp
 CI_HOMEBREW_DESCRIPTION ?= A Python CLI application
-CI_HOMEBREW_LICENSE ?= MIT
+CI_HOMEBREW_LICENSE ?= MIT # replace with the actual SPDX license identifier
+CI_HOMEBREW_RESOURCES_FILE ?= .github/homebrew-resources.rb
 ```
+
+The resources file contains Ruby `resource` blocks for each direct and transitive dependency. Generate an initial set with `brew update-python-resources dist/homebrew/myapp.rb`, review each URL and checksum, then save the resource blocks in the configured file. The generated formula includes `Language::Python::Virtualenv` and the package's PyPI name for future resource updates.
 
 ---
 
@@ -79,10 +83,14 @@ brew install acme/tap/myapp
 
 ```ruby
 class Myapp < Formula
+  include Language::Python::Virtualenv
+
   desc "A Python CLI application"
   homepage "https://github.com/acme/myapp"
-  url "https://pypi.io/packages/source/m/myapp/myapp-1.2.3.tar.gz"
+  url "<exact sdist URL returned by PyPI>"
+  sha256 "<SHA-256 returned by PyPI>"
   license "MIT"
+  pypi_packages package_name: "myapp"
 
   depends_on "python@3.14"
 
@@ -91,12 +99,12 @@ class Myapp < Formula
   end
 
   test do
-    system bin/"myapp", "--version"
+    system libexec/"bin/python", "-c", "import importlib.metadata; assert importlib.metadata.version('myapp') == '1.2.3'"
   end
 end
 ```
 
-The formula uses the Python version configured by `CI_PYTHON_VERSION` in `project.mk`. It downloads the source tarball from PyPI, creates an isolated virtual environment, installs the package and its dependencies, and exposes the CLI entry point in `bin/`.
+The formula uses the exact source URL and SHA-256 returned by PyPI for the published release. It uses the Python version configured by `CI_PYTHON_VERSION` and checks the installed distribution metadata by default. Set `CI_HOMEBREW_EXECUTABLE` only when the project exposes a CLI that supports `--version`.
 
 ---
 

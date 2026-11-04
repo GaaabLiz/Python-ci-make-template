@@ -43,16 +43,16 @@ CI_DOCKER_BUILD_CONTEXT ?= .
 CI_DOCKER_PUSH_LATEST ?= 1
 ```
 
-The sample multi-stage `Dockerfile` uses `CI_DOCKER_PYTHON_VERSION` and `CI_DOCKER_UV_VERSION`, which default to `CI_PYTHON_VERSION` and `CI_UV_VERSION`. Adjust the entrypoint to match your project:
-
-```dockerfile
-ENTRYPOINT ["myapp"]
-```
-
-If your package does not expose a console script, use the module entrypoint instead:
+The sample multi-stage `Dockerfile` uses `CI_DOCKER_PYTHON_VERSION` and `CI_DOCKER_UV_VERSION`, which default to `CI_PYTHON_VERSION` and `CI_UV_VERSION`. Its default entrypoint runs the sample package with `python -m myapp`; change the module name if `PYTHON_MAIN_PACKAGE` changes:
 
 ```dockerfile
 ENTRYPOINT ["python", "-m", "myapp"]
+```
+
+For a console-script application, replace it with the installed script:
+
+```dockerfile
+ENTRYPOINT ["myapp"]
 ```
 
 ---

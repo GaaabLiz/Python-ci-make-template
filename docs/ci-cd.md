@@ -4,22 +4,23 @@ GitHub Actions orchestrates the pipeline; shared commands live in Makefile targe
 
 ## CI workflow
 
-CI runs for pull requests, pushes to any branch, and manual CI runs. It is also a reusable workflow called by release.yml so releases pass the same checks as normal changes.
+CI runs for pull requests, pushes to any branch, merge queue groups, and manual CI runs. It is also a reusable workflow called by release.yml so releases pass the same checks as normal changes.
 
 The workflow:
 
 1. validates CI matrix settings from project.mk
-2. runs Ruff checks on CI_PYTHON_VERSION
-3. runs tests across CI_PYTHON_VERSIONS and CI_TEST_OS_MATRIX
-4. builds the wheel and sdist once
-5. installs each distribution in isolation and imports PYTHON_MAIN_PACKAGE
-6. uploads those verified files as a workflow artifact
+2. lints workflow files with actionlint
+3. runs Ruff checks on CI_PYTHON_VERSION
+4. runs tests across CI_PYTHON_VERSIONS and CI_TEST_OS_MATRIX
+5. builds the wheel and sdist once
+6. installs each distribution in isolation and imports PYTHON_MAIN_PACKAGE
+7. uploads those verified files as a workflow artifact
 
 Tests are required. Set CI_TEST_COMMAND to adapt the test runner; CI cannot be made green by skipping the test step.
 
 ## Release workflow
 
-Push a version tag such as v1.2.3 to start a release. The workflow calls ci.yml against that tag, verifies that the tag version matches pyproject.toml, creates a draft release, and builds optional application assets for the enabled platforms.
+Push a version tag such as v1.2.3 to start a release. The workflow calls ci.yml against that tag, verifies that the tag version matches pyproject.toml, opens a pull request for generated changelog/API docs, creates a draft release, and builds optional application assets for the enabled platforms.
 
 The wheel and sdist are reused from the CI gate and built only once. Platform asset builds default to disabled; enable CI_BUILD_LINUX, CI_BUILD_MACOS, or CI_BUILD_WINDOWS only when the project configures APPS_LIST or a Windows installer. After validation and builds succeed, optional publication runs in order: PyPI, GitHub Release, then the other configured registries. Homebrew waits for PyPI because its formula installs the package from PyPI.
 
@@ -33,6 +34,8 @@ Edit these values in project.mk:
 - CI_PYTHON_VERSIONS: JSON array of Python versions supported by the project
 - CI_TEST_OS_MATRIX: JSON array of runner labels; use an Ubuntu-only list for Linux-only projects
 - CI_UV_VERSION: exact uv version installed by the workflows
+- CI_GIT_CLIFF_VERSION: exact git-cliff release used for changelogs and release notes
+- RELEASE_CHANGELOG_TARGET_BRANCH: base branch for the generated-files pull request
 - CI_QUALITY_TARGETS: Make targets used for lint and formatting; add type-check when using ty
 - CI_TEST_COMMAND: test command, defaulting to uv run pytest $(TESTS_PATH)
 - RELEASE_ARTIFACTS: patterns for optional platform assets attached to GitHub Releases
@@ -47,11 +50,12 @@ Keep CI_PYTHON_VERSIONS within the requires-python range in pyproject.toml. The 
 make ci-setup installs the project and the dev group only. The sample groups optional tools separately:
 
 - dev: pytest, pytest-cov, and Ruff
+- build: PyInstaller for native application builds
 - typing: ty
 - docs: pdoc
 - graphics: SVG and icon conversion libraries
 
-The lockfile is checked with --locked; update and commit uv.lock after changing dependencies or groups. CI uses a pinned uv version and pinned GitHub Action commits.
+The lockfile is checked with --locked; update and commit uv.lock after changing dependencies or groups. CI uses a pinned uv version and pinned GitHub Action commits. Configure the optional `RELEASE_AUTOMATION_TOKEN` secret if generated-file pull requests must trigger normal CI checks; GitHub's default token creates them without starting another workflow run.
 
 ## Publication workflows
 
