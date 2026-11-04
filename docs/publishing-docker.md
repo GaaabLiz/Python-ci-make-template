@@ -1,133 +1,54 @@
 # Publishing to Docker Hub
 
-This guide explains how to configure automatic Docker image publication to Docker Hub for each release.
+Docker packages an app together with the files it needs. Docker Hub is a service that stores these packages (called images) so people can download and run them. This publishing option is off by default.
 
----
+## 1. Create a Docker Hub repository
 
-## Prerequisites
+1. Sign in to [Docker Hub](https://hub.docker.com/) and create a repository, for example `myapp`.
+2. Create a [Docker Hub personal access token](https://docs.docker.com/security/access-tokens/personal-access-tokens/) and give it permission to push images to the repository.
 
-### On Docker Hub
+## 2. Save the login details in GitHub
 
-1. Create an account at [hub.docker.com](https://hub.docker.com/) if you do not already have one.
-2. Create a repository from `Repositories -> Create Repository`.
-   - Pick a name such as `myapp`. The full image name will be `yourusername/myapp`.
-   - The repository can be public or private.
-3. Generate an access token from `Account Settings -> Security -> New Access Token`.
-   - A name such as `github-actions` is fine.
-   - `Read & Write` permissions are enough.
-   - Copy the token immediately because Docker Hub will not show it again.
+In your GitHub repository, open **Settings → Environments** and create an environment named `dockerhub`. An environment is a named place for release settings and private secrets. Add these two secrets to that environment:
 
-### On GitHub
+| Secret name | Value |
+| --- | --- |
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | The access token you just created |
 
-4. Create an environment in your repository from `Settings -> Environments -> New environment`.
-   - Use the name `dockerhub` unless you also change `CI_DOCKERHUB_ENVIRONMENT` in `project.mk`.
-   - Optional: add protection rules if your release process requires approvals.
-5. Add these secrets to the `dockerhub` environment:
+Secrets are private values. Do not put them in `project.mk`, `Makefile`, or `Dockerfile`.
 
-   | Secret | Value |
-   |--------|-------|
-   | `DOCKERHUB_USERNAME` | Your Docker Hub username |
-   | `DOCKERHUB_TOKEN` | The access token created above |
+## 3. Set the project values
 
----
+Edit the existing Docker settings in `project.mk`:
 
-## Template configuration
+- Set `CI_ENABLE_DOCKERHUB_PUBLISH` to `1`.
+- Set `CI_DOCKERHUB_IMAGE` to `your-username/your-repository`.
+- Change `CI_DOCKERFILE` or `CI_DOCKER_BUILD_CONTEXT` only if your files are in different places.
+- Set `CI_DOCKER_ENTRYPOINT` to the command that starts your app in the container. The default is `python -m $(PYTHON_MAIN_PACKAGE)`.
+- Set `CI_DOCKER_PUSH_LATEST` to `1` if you also want a `latest` tag.
 
-Update the relevant Docker settings in `project.mk`:
+For example, if your package is started with `python -m myapp`, the default command works. If it has an installed command named `myapp`, set `CI_DOCKER_ENTRYPOINT` to `myapp`. Package-specific Docker settings belong in `project.mk`; the shared image build command is in `Makefile`.
 
-```makefile
-CI_ENABLE_DOCKERHUB_PUBLISH ?= 1
-CI_DOCKERHUB_IMAGE ?= yourusername/myapp
-CI_DOCKERFILE ?= Dockerfile
-CI_DOCKER_BUILD_CONTEXT ?= .
-CI_DOCKER_PUSH_LATEST ?= 1
+## 4. Publish a release
+
+Push a version tag such as `v1.2.3`. After the release checks pass, GitHub builds and pushes an image with that version. If enabled, it also pushes `latest`.
+
+Users can download the image with:
+
+```sh
+docker pull your-username/your-repository:v1.2.3
 ```
 
-The sample multi-stage `Dockerfile` uses `CI_DOCKER_PYTHON_VERSION` and `CI_DOCKER_UV_VERSION`, which default to `CI_PYTHON_VERSION` and `CI_UV_VERSION`. Its default entrypoint runs the sample package with `python -m myapp`; change the module name if `PYTHON_MAIN_PACKAGE` changes:
+## Optional: test the image locally
 
-```dockerfile
-ENTRYPOINT ["python", "-m", "myapp"]
+Install Docker Desktop or Docker Engine. Set `CI_DOCKERHUB_IMAGE` in `project.mk` to a local image name, such as `myapp-local`, then build and run it from Git Bash, WSL, macOS, or Linux:
+
+```sh
+DOCKER_IMAGE_TAG=local make ci-docker-build
+docker run --rm myapp-local:local --help
 ```
 
-For a console-script application, replace it with the installed script:
+Replace `myapp-local` in the last command with the image name you set in `project.mk`.
 
-```dockerfile
-ENTRYPOINT ["myapp"]
-```
-
----
-
-## Local testing
-
-Before enabling the release workflow, make sure the image builds and runs locally:
-
-```bash
-docker build -t myapp .
-docker run --rm myapp --help
-docker run --rm -it myapp
-```
-
----
-
-## How the workflow works
-
-The workflow in `../.github/workflows/publish-dockerhub.yml` is called by `release.yml` after the CI gate, configured asset builds, and GitHub Release publication succeed. It runs only when `CI_ENABLE_DOCKERHUB_PUBLISH=1`.
-
-The publication sequence is:
-
-1. Log in to Docker Hub with the configured secrets.
-2. Resolve the Docker tag from the verified Git tag.
-3. Build the image with `docker build`.
-4. Push the versioned tag.
-5. Optionally push `latest` when `CI_DOCKER_PUSH_LATEST=1`.
-
-After publishing `v1.2.3`, users can pull:
-
-```bash
-docker pull yourusername/myapp:v1.2.3
-docker pull yourusername/myapp:latest
-```
-
----
-
-## Typical release flow
-
-```text
-make release-patch-tag
--> push tag v1.2.3
--> release.yml creates the GitHub Release
--> publish-dockerhub.yml builds and pushes the image
-```
-
----
-
-## Advanced customization
-
-### Multi-platform builds
-
-The workflow already installs Buildx, but the default Make target builds only for the runner architecture. To publish multiple architectures, extend `ci-docker-build` in the Makefile with a `--platform` flag such as `linux/amd64,linux/arm64`.
-
-### Build arguments
-
-If your Dockerfile needs build arguments, extend `ci-docker-build` like this:
-
-```makefile
-docker build \
-    -f "$(CI_DOCKERFILE)" \
-    --build-arg APP_VERSION=$$DOCKER_IMAGE_TAG \
-    -t "$(CI_DOCKERHUB_IMAGE):$$DOCKER_IMAGE_TAG" \
-    "$(CI_DOCKER_BUILD_CONTEXT)"
-```
-
----
-
-## Troubleshooting
-
-| Problem | Likely cause | Fix |
-|---------|--------------|-----|
-| Workflow does not start | `CI_ENABLE_DOCKERHUB_PUBLISH=0` | Set it to `1` in `project.mk` |
-| Docker login fails | Missing or incorrect secrets | Check `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` in the environment |
-| Docker build fails | `Dockerfile` not found | Verify that `CI_DOCKERFILE` points to the correct file |
-| Push is denied | Token lacks write access | Regenerate the token with `Read & Write` permissions |
-| Image is missing after push | Docker Hub repository does not exist | Create the repository before the first release |
-| `latest` is not updated | `CI_DOCKER_PUSH_LATEST=0` | Set it to `1` in `project.mk` |
+If the image fails to build, check that the `Dockerfile` path, build context, and app entry point match the project.

@@ -1,19 +1,27 @@
 # Publishing to PyPI
 
-PyPI publication is an optional job inside release.yml. It receives the exact wheel and source distribution that passed the CI installation smoke tests, so it does not rebuild the package with a different toolchain.
+[PyPI](https://pypi.org/) is the main site for sharing Python packages. This template can publish a package after you push a version tag. Publishing is optional and off by default.
 
-## Configure Trusted Publishing
+## Before you start
 
-1. Create or select the package project on PyPI.
-2. In the GitHub repository, create an environment named pypi, or set CI_PYPI_ENVIRONMENT to a different name.
-3. In the PyPI project settings, add a GitHub Actions trusted publisher with the repository owner, repository name, workflow filename release.yml, and the matching GitHub environment.
-4. Set CI_ENABLE_PYPI_PUBLISH to 1 in project.mk.
-5. Push a version tag whose value matches the version in pyproject.toml, for example v1.2.3.
+- Set the package name, version, dependencies, and Python requirement in `pyproject.toml`.
+- Push your project to GitHub.
+- Decide on the PyPI package name. If the package already exists, you need access to its settings. If it is new, configure a pending publisher from your PyPI account settings; see [PyPI's guide for new projects](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
 
-No PyPI API token secret is required. The publication job receives id-token permission only after the CI gate and configured release asset builds succeed. It publishes before the GitHub draft release becomes public; if PyPI fails, the release remains a draft.
+## Set up trusted publishing
 
-## Release flow
+Trusted publishing lets GitHub prove to PyPI that a release comes from your repository. It uses a short-lived identity, so you do not need to create or store a PyPI API token.
 
-The release workflow validates the tagged commit, builds and tests the distributions once, optionally publishes them to PyPI, then publishes the GitHub Release. Homebrew waits for PyPI to finish successfully.
+1. In your GitHub repository, open **Settings → Environments** and create an environment named `pypi`. An environment is a named place for release settings and optional approvals. If you choose another name, set `CI_PYPI_ENVIRONMENT` in `project.mk` to match.
+2. In the PyPI project settings, add a **Trusted Publisher** for GitHub Actions. For a new package, add a pending publisher from your PyPI account settings instead.
+3. Enter your GitHub owner, repository name, workflow filename `release.yml`, and the same environment name. For a new package, also enter the project name exactly as it appears in `pyproject.toml`.
+4. In `project.mk`, change the existing `CI_ENABLE_PYPI_PUBLISH` value from `0` to `1`.
+5. Push a version tag that matches `pyproject.toml`, for example `v1.2.3` for version `1.2.3`.
 
-Use GitHub environment protection rules if PyPI publication needs maintainer approval. The workflow_dispatch trigger is intentionally absent from publication workflows; manual CI runs cannot publish a branch.
+Update the existing setting in `project.mk`; do not add a second copy of the line. See [Release Automation](release-automation.md) for creating a tag.
+
+## What happens
+
+GitHub runs the required checks, builds the wheel and source archive once, then gives those same checked files to PyPI. If publishing fails, the GitHub Release is not made public.
+
+You can add approval rules to the `pypi` GitHub environment if a maintainer must approve each publication. For detailed setup, see [PyPI's trusted publisher guide](https://docs.pypi.org/trusted-publishers/).

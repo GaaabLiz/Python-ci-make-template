@@ -4,66 +4,55 @@
 [![Release](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/release.yml?label=Release)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/release.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](docs/getting-started.md)
 
-Reusable Python project template built around `make`, `uv`, and GitHub Actions.
+A starter template for Python projects. It uses `make` for common commands, `uv` for Python packages, and GitHub Actions for checks and releases.
 
-This template gives you:
+## Start here
 
-- a reusable `Makefile` for local development, build, release, and CI helpers
-- a `project.mk` file where each project keeps its own settings
-- GitHub Actions workflows that call `make` targets instead of ad-hoc shell commands
-- optional packaging and publication flows for PyInstaller, Inno Setup, PyPI, Docker Hub, Chocolatey, Homebrew, and WinGet
+1. Create a repository from this template.
+2. Set your package name, version, description, and dependencies in `pyproject.toml`.
+3. Set your project-specific options in `project.mk`.
+4. Install the tools and run the first checks by following [Getting Started](docs/getting-started.md).
 
-## How to use it
+You usually only need to edit `pyproject.toml` and `project.mk`:
 
-1. Create a new repository from this template, or copy the core files into your project.
-2. Update `pyproject.toml` with your package metadata and dependencies.
-3. Update `project.mk` with your package name, supported Python/OS matrices, test command, and release asset settings.
-   Set the real license and publisher URLs before enabling any registry publisher.
-4. Install development dependencies with `make install-dev`.
-5. Run `make qa` and `make build` before pushing changes.
-6. If you build executables or installers, configure `APPS_LIST`, installer variables, `CI_BUILD_*`, and `RELEASE_ARTIFACTS`.
+- `pyproject.toml` describes your Python package and its dependencies.
+- `project.mk` contains the settings for your project: package folder, tests, supported Python versions, release files, and optional publishers.
+- `Makefile` contains the shared commands. Leave it as it is when configuring a project. Change it only when adding or fixing a command that should work the same way for all projects using this template.
 
-## Minimal first run
+## What this template does
 
-```bash
-make install-dev
+- Uses the same `make` commands on your computer and in GitHub Actions.
+- Checks code style, runs tests, and builds Python packages.
+- Can optionally build standalone apps and Windows installers.
+- Can optionally publish to PyPI, Docker Hub, Chocolatey, Homebrew, and WinGet.
+
+Publishing is off by default. You do not need Homebrew or Chocolatey to use the template or publish a normal Python package. See the relevant guide only if you want that publishing option.
+
+## First commands
+
+After following the setup guide, run:
+
+```sh
 make ci-log-config
 make qa
 make build
 ```
 
-## Key files
+`make` with no target shows the available commands.
 
-- `Makefile`: reusable commands shared by projects that adopt the template
-- `project.mk`: project-specific configuration and CI toggles
-- `.github/workflows/`: CI, release, and publication workflows
-- `.mk/scripts.py`: internal helper script used by the Make targets
+## Guides
 
-## Documentation
-
-Use the shorter guides below for the parts you need:
-
-- [Getting Started](docs/getting-started.md)
-- [Project Structure](docs/project-structure.md)
-- [Configuration](docs/configuration.md)
-- [Development Workflow](docs/development.md)
-- [Build And Packaging](docs/build-and-packaging.md)
-- [CI/CD Automation](docs/ci-cd.md)
+- [Getting Started](docs/getting-started.md): install tools and run the project for the first time
+- [Configuration](docs/configuration.md): choose what to change in `project.mk`
+- [Project Structure](docs/project-structure.md): understand the main files and folders
+- [Development Workflow](docs/development.md): everyday commands
+- [Build and Packaging](docs/build-and-packaging.md): Python packages, apps, icons, and Windows installers
+- [CI/CD Automation](docs/ci-cd.md): automatic checks and releases
+- [Release Automation](docs/release-automation.md): create and publish a version
 - [Publishing to PyPI](docs/publishing-pypi.md)
-- [Release Automation](docs/release-automation.md)
+- [Publishing to Docker Hub](docs/publishing-docker.md)
+- [Publishing to Chocolatey](docs/publishing-chocolatey.md)
+- [Publishing to Homebrew](docs/publishing-homebrew.md)
+- [Publishing to WinGet](docs/publishing-winget.md)
 - [Qt Support](docs/qt-support.md)
 - [Troubleshooting](docs/troubleshooting.md)
-
-## Core idea
-
-The template keeps one source of truth:
-
-- local development uses `make`
-- CI uses the same `make` targets
-- release automation also uses `make`
-
-The release workflow runs the reusable CI gate first and builds the Python distributions once. Optional PyPI, Docker Hub, Chocolatey, Homebrew, and WinGet jobs run only after that gate and the configured asset builds succeed.
-
-Release automation proposes changelog and optional API documentation updates through a pull request to the configured target branch.
-
-That keeps project setup predictable and reduces duplication between shell scripts, workflow YAML, and developer instructions.

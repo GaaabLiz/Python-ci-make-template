@@ -1,58 +1,71 @@
 # Getting Started
 
-This template is designed to give new Python projects a consistent local workflow and a CI/release setup with very little custom scripting.
+Follow these steps once after creating a repository from the template. You do not need Homebrew or Chocolatey to publish from GitHub Actions. On Windows, the Git Bash setup below uses Chocolatey to install Make; WSL uses Ubuntu's package manager instead.
 
-## Requirements
+## 1. Install the basic tools
 
-- Git
-- `make`
-- `uv`
-- Python compatible with the version declared in `pyproject.toml`
+You need Git, GNU Make, and `uv`.
 
-On Windows, use GNU Make from a Git Bash/MSYS2 or WSL environment; Makefile recipes use a POSIX-compatible shell.
+- Install Git from [git-scm.com](https://git-scm.com/downloads).
+- On macOS, install Apple's command-line tools with `xcode-select --install`. This provides `make`.
+- On Linux, install `make` with your system's package manager.
+- On Windows, use a WSL Linux terminal or Git Bash/MSYS2. The Makefile uses Unix-style shell commands, so do not run it directly in PowerShell. In Ubuntu on WSL, install Make with `sudo apt update && sudo apt install make`. If you use Git Bash, install Chocolatey through WinGet as described below, then run `choco install make --yes` in PowerShell opened as administrator.
+- Install `uv` using the [official instructions](https://docs.astral.sh/uv/getting-started/installation/). On macOS/Linux, one option is `curl -LsSf https://astral.sh/uv/install.sh | sh`. In PowerShell, one option is `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`.
 
-Official `uv` installation instructions:
+Open a new terminal after installing tools, then check they are available:
 
-- https://docs.astral.sh/uv/
+```sh
+git --version
+make --version
+uv --version
+```
 
-## Fast setup
+If a command is not found, install that tool or reopen the terminal so it can refresh its command list.
 
-1. Create a new repository from the template.
-2. Rename the Python package directory if needed.
-3. Update `pyproject.toml` metadata.
-4. Update `project.mk` values for your project, including the Python and OS matrices.
-5. Install dependencies and run the standard checks.
+## 2. Set your project details
 
-```bash
+Edit these files:
+
+1. In `pyproject.toml`, set the package name, version, description, Python requirement, and Python dependencies.
+2. In `project.mk`, set the name of your Python package folder and any project-specific test or CI options.
+
+The template keeps reusable commands in `Makefile`. Do not edit it just to set your project's name, paths, Python versions, or publishing settings. For details, see [Configuration](configuration.md).
+
+## 3. Install project dependencies
+
+From the repository folder, run:
+
+```sh
 make install-dev
+```
+
+This uses `uv` and `uv.lock` to prepare the local Python environment and install the development tools. If you change dependencies in `pyproject.toml`, update and commit `uv.lock` too.
+
+## 4. Run the first checks
+
+```sh
 make ci-log-config
 make qa
 make build
 ```
 
-## Minimum files to review first
+- `ci-log-config` prints the settings that the template will use.
+- `qa` checks code style and runs tests.
+- `build` creates the Python package files in `dist/`.
 
-- `pyproject.toml`
-- `project.mk`
-- `Makefile`
-- `.github/workflows/ci.yml`
-- `.github/workflows/release.yml`
+If a command fails, start with [Troubleshooting](troubleshooting.md).
 
-## Recommended first checklist
+## Optional: Homebrew and Chocolatey
 
-- Set `PYTHON_MAIN_PACKAGE` in `project.mk`
-- Set project name, version, description, and Python requirement in `pyproject.toml`
-- Make sure `TESTS_PATH` points to your real test directories
-- Set `CI_PYTHON_VERSION`, `CI_PYTHON_VERSIONS`, and `CI_TEST_OS_MATRIX` to match your support policy
-- Set `CI_TEST_COMMAND` if you use a runner other than pytest
-- Confirm `RELEASE_ARTIFACTS` matches the files you expect to publish
+These are package managers used by end users to install published apps. They are not needed for the normal template setup or for publishing a Python package.
 
-## When you need more than a package build
+- To test a Homebrew formula on macOS or Linux, install Homebrew using the official instructions on [brew.sh](https://brew.sh/). The standard command is:
 
-The template also supports optional features that you can enable later:
+  ```sh
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  ```
 
-- PyInstaller executables through `APPS_LIST`
-- Windows installers through Inno Setup variables
-- Release publication through GitHub Releases
-- Optional PyPI, Docker Hub, Chocolatey, Homebrew, and WinGet publication jobs
-- Optional Qt resource compilation through `qt.mk`
+  The script explains what it will do and pauses before continuing. Follow any final setup steps it prints, then check `brew --version`. Run `brew install uv` if you want to install uv with Homebrew.
+- To test a Chocolatey package on Windows, install Chocolatey using its [official setup guide](https://docs.chocolatey.org/en-us/choco/setup/). If WinGet is available, open PowerShell as administrator and run `winget install --id chocolatey.chocolatey --source winget`. Open a new terminal and check `choco --version`. The template's local `make install-inno` command uses Chocolatey to install Inno Setup.
+
+You can configure automatic publication from GitHub Actions without installing either package manager on your own computer. Read the relevant [Homebrew](publishing-homebrew.md) or [Chocolatey](publishing-chocolatey.md) guide when you want to enable it.

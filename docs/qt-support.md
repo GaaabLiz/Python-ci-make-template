@@ -1,33 +1,28 @@
 # Qt Support
 
-Qt support is optional and lives in `qt.mk`.
+Qt support is optional. Use it only if your app uses PySide or PyQt and you need to turn a Qt `.qrc` resource file into Python code.
 
-## Enable it
+## Enable the Qt command
 
-1. Keep `qt.mk` next to `Makefile`
-2. Uncomment `include qt.mk` in `project.mk`
-3. Override the Qt variables before the include if needed
+1. Keep `qt.mk` next to `Makefile`.
+2. In `project.mk`, remove the `#` from `include qt.mk`.
+3. Set the Qt paths if your files are not in the example locations.
+4. Add the needed Qt tools to the appropriate dependency group in `pyproject.toml`.
 
-## Main variables
+The settings are:
 
-- `QT_COMMAND_GEN_RES`: resource compiler command, usually `pyside6-rcc` or `pyrcc6`
-- `QT_QRC_FILE`: source `.qrc` file
-- `QT_RESOURCE_PY`: generated Python resource module output path
+- `QT_COMMAND_GEN_RES`: the resource compiler command, usually `pyside6-rcc` or `pyrcc6`
+- `QT_QRC_FILE`: your `.qrc` input file
+- `QT_RESOURCE_PY`: where to write the generated Python file
 
-## Target
+Run the generator with:
 
-Compile the Qt resource file into a Python module:
-
-```bash
+```sh
 make gen-qt-res-py
 ```
 
-Example with overrides:
+You can pass different file paths for one run:
 
-```bash
+```sh
 make gen-qt-res-py QT_QRC_FILE=res/icons.qrc QT_RESOURCE_PY=myapp/icons_rc.py
 ```
-
-## Requirement
-
-The required Qt tooling must be installed in the `uv` environment. For PySide6 projects, that usually means adding `pyside6` to the appropriate dependency group.
