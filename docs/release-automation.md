@@ -1,54 +1,45 @@
 # Release Automation
 
-The template includes Make targets for version bumps, tagging, changelog generation, and GitHub Release publication.
+A release is a published version of your project. This template starts a release when you push a version tag, for example `v1.2.3`.
 
-## Version bump targets
+## Before your first release
 
-- `make bump-patch-beta`
-- `make bump-patch`
-- `make bump-minor`
-- `make bump-major`
+1. Set the version in `pyproject.toml`.
+2. Set the release options in `project.mk`.
+3. Run `make qa` and `make build` locally.
+4. Push your changes to the branch named by `RELEASE_CHANGELOG_TARGET_BRANCH` (usually `main`).
+5. Follow the setup guide for each publisher you want to enable. All publishers start disabled.
 
-## Release targets
+The release tag must point to a commit already included in the target branch. The workflow also checks that the tag version matches `pyproject.toml`.
 
-- `make release-patch-beta`
-- `make release-patch`
-- `make release-minor`
-- `make release-major`
-- `make tag`
-- `make release-patch-beta-tag`
-- `make release-patch-tag`
-- `make release-minor-tag`
-- `make release-major-tag`
+## Create and push a version tag
 
-## Changelog and release notes
+The release Make targets update the version in `pyproject.toml`, update the installer version if configured, commit and push the version change, then create and push a Git tag. They send changes to GitHub automatically.
 
-The release workflow only runs on version tags. It calls the same reusable CI workflow used for branch builds, verifies that the tag matches the project version, and keeps the GitHub release as a draft until validation and builds complete.
+Before running one, make sure your work is committed, your working tree is clean, and you are on the release branch (usually `main`) with the latest changes. For a patch release, run:
 
-It uses git-cliff for changelog and notes:
+```sh
+make release-patch-tag
+```
 
-- `make ci-generate-changelog`
-- `make ci-generate-release-notes`
+This makes a patch release, for example changing `1.2.3` to `1.2.4`, and starts the release workflow by pushing the new tag. Other options are `make release-minor-tag`, `make release-major-tag`, and `make release-patch-beta-tag`. To see all available commands, run `make`.
 
-Configuration comes from `cliff.toml` and the file paths declared in `project.mk`.
-The workflow opens or updates a pull request against `RELEASE_CHANGELOG_TARGET_BRANCH`; it does not push generated files directly to a protected branch. The release tag must point to a commit already contained in the target branch. Set the optional `RELEASE_AUTOMATION_TOKEN` secret if pull requests should trigger CI checks; the token is used for both the automation branch push and the PR operation.
+If you prefer to create a release manually, update the version in `pyproject.toml`, commit and push that change to the release branch, then create and push a matching `v`-prefixed Git tag. The tag must point to a commit already on the release branch.
 
-When `CI_ENABLE_RELEASE_DOCS=1`, pdoc output is stored under `docs/api/` and included in the same pull request. Existing authored guides under `docs/` are preserved.
+## What GitHub does
 
-## How release artifact building behaves
+GitHub Actions runs CI, creates a draft release, builds the configured app files, and prepares changelog and release notes. When all required jobs pass, it publishes the GitHub Release and runs any enabled publishers.
 
-- The CI gate builds and smoke-tests the wheel and sdist once; release publication reuses those exact files.
-- Native application asset builds are opt-in through `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS`.
-- If `APPS_LIST` is set, enabled platform jobs create one-file executables.
-- Every configured app executable must exist and be included in `RELEASE_ARTIFACTS` on each enabled platform.
-- If Windows installer support is enabled, Windows release builds generate the installer as well.
+The wheel and source archive are built and checked once, then reused. WinGet uses the same Windows installer artifact that is attached to the GitHub Release when it calculates the installer hash. macOS graphical apps are zipped before upload.
 
-## Common release mistake
+The workflow opens or updates a pull request with generated changelog files instead of writing them directly to your protected branch. The tag must already be on the target branch. Set `RELEASE_AUTOMATION_TOKEN` in GitHub only if the generated-files pull request should start normal CI checks.
 
-If an optional platform build reports that `RELEASE_ARTIFACTS` matches no files, the project is usually in one of these states:
+## Changelog and API documentation
 
-- `APPS_LIST` or Windows installer settings were not configured
-- the enabled platform build did not produce an asset
-- `RELEASE_ARTIFACTS` does not match the real output paths
+`cliff.toml` controls generated changelog and release notes. The relevant output paths are set in `project.mk`.
 
-The workflow prints generated files and validates platform asset patterns before upload. Wheel and sdist are built by the CI gate and do not depend on `RELEASE_ARTIFACTS`.
+API documentation is optional. Set `CI_ENABLE_RELEASE_DOCS=1` in `project.mk` to generate it during a release. The generated pages go in `docs/api/`; the guides you wrote in `docs/` are kept.
+
+## If a release build fails
+
+Check the failed job in the repository's GitHub Actions page. For app build failures, confirm that the matching `CI_BUILD_*` option is `1`, `APPS_LIST` and its app settings are correct, and `RELEASE_ARTIFACTS` includes the generated files. Run `make ci-log-config` to see the settings the workflow receives.

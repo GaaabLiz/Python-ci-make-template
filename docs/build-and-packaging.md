@@ -1,86 +1,65 @@
-# Build And Packaging
+# Build and Packaging
 
-The template supports both standard Python packages and optional executable distribution.
+This template can build a Python package. If you want, it can also build standalone apps and a Windows installer.
 
-## Standard Python package build
+## Python package
 
-Build wheel and source distribution:
+For most projects, this is the only build you need:
 
-```bash
+```sh
 make build
 ```
 
-This runs:
+It creates a wheel (a ready-to-install package) and a source archive in `dist/`. These files can be published to PyPI. The release workflow builds and checks them once, then reuses those files.
 
-- clean steps
-- project metadata generation
-- `uv build`
+## Standalone apps with PyInstaller (optional)
 
-Artifacts are written to `dist/`.
+Use this when people should be able to download and run your app without setting up Python themselves. First configure `APPS_LIST` and its app settings in `project.mk`; see [Configuration](configuration.md#python-package-or-standalone-app).
 
-## PyInstaller executables
+Install the app-building dependencies and build:
 
-If `APPS_LIST` is configured, you can build executables as well.
-Install the optional build tools with `make install-pyinstaller`. CI installs the separate `build` dependency group automatically for native release jobs.
-
-The default keeps the console visible, which suits CLI programs. Set `PYINSTALLER_WINDOWED=1` only for GUI apps.
-
-One-folder executables:
-
-```bash
-make build-exe
-```
-
-One-file executables:
-
-```bash
+```sh
+uv sync --group dev --group build
+make gen-project-module
 make build-exe-onefile
 ```
 
-Combined package and executable builds:
+The one-file app is placed in `dist/`. `make build-exe` creates a folder containing the app and its supporting files instead. `make build-app-onefile` builds the Python package and app together.
 
-```bash
-make build-app
-make build-app-onefile
+The default keeps a terminal window open, which is right for command-line apps. Set `PYINSTALLER_WINDOWED=1` in `project.mk` only for an app with a graphical window. On macOS, a windowed app is saved as a `.app` bundle and packaged as a `.app.zip` file for download.
+
+For release builds, also set the needed `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `CI_BUILD_WINDOWS` value to `1`. The release jobs generate the project version module before building PyInstaller apps.
+
+## Windows installer (optional)
+
+An installer is a setup program that guides Windows users through installing and removing an app. This template uses [Inno Setup](https://jrsoftware.org/isinfo.php).
+
+1. Configure a PyInstaller app and the `INNO_*` values in `project.mk`.
+2. Set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`.
+3. Add the installer path (usually `Output/*.exe`) to `RELEASE_ARTIFACTS`.
+4. To build locally, install Inno Setup, then run `make build-installer` from Git Bash or MSYS2 on Windows. The target detects a real Windows shell; it does not work from WSL.
+
+The `make install-inno` helper installs Inno Setup with Chocolatey. It therefore needs Chocolatey to be installed first; see the [official Chocolatey setup guide](https://docs.chocolatey.org/en-us/choco/setup/). You can also install Inno Setup directly and skip that helper, but make sure `ISCC.exe` is available on your `PATH` so Make can find it.
+
+## Release files
+
+`RELEASE_ARTIFACTS` in `project.mk` lists the app files and installers attached to a GitHub Release. It does not include the Python wheel and source archive; those are uploaded separately.
+
+The release job checks that each enabled platform created the expected files and that the file patterns match `RELEASE_ARTIFACTS`. Use these commands to inspect the results:
+
+```sh
+make ci-build-release-assets
+make ci-list-build-artifacts
 ```
 
-## Windows installer
+Run the build on the matching operating system. The Windows installer can only be built on Windows, for example.
 
-When `ENABLE_WINDOWS_INSTALLER=1`, the template can generate an Inno Setup script and build an installer.
+## App icons (optional)
 
-Relevant variables live in `project.mk`:
+Start with an SVG logo, then generate the Windows `.ico` and macOS `.icns` files:
 
-- `INNO_SETUP_FILE`
-- `INNO_APP_NAME`
-- `INNO_APP_PUBLISHER`
-- `INNO_APP_ICON`
-- `INNO_APP_EXE`
-- `INNO_OUTPUT_DIR`
-- `INNO_OUTPUT_BASE_FILENAME`
-
-Typical flow on Windows:
-
-```bash
-make gen-inno-iss
-make installer
-make build-installer
-```
-
-## Release asset expectations
-
-CI builds and smoke-tests the wheel and sdist once, then uploads them to the GitHub Release. `RELEASE_ARTIFACTS` is for optional application binaries and installers only.
-
-- package-only projects should leave `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS` at 0
-- application projects should enable only the platform jobs they need
-- projects with installers should usually add `Output/*.exe`
-- projects with extra binaries should add the matching output paths explicitly
-
-Enabled platform jobs print generated files and verify that every configured app output exists and is included in `RELEASE_ARTIFACTS`. For release uploads, a windowed macOS `.app` bundle is archived as a `.app.zip` file.
-
-## Logo and icon assets
-
-If your app needs icons for executables or installers, generate them from SVG once and commit the outputs you want to keep:
-
-```bash
+```sh
 make gen-logo-icons SVG=resources/logo.svg
 ```
+
+The generated ICO contains several sizes so Windows and the installer can choose a suitable one. Commit the icon files if you want to keep them in the project.

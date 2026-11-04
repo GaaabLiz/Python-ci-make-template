@@ -1,258 +1,63 @@
 # Publishing to WinGet
 
-This guide explains how to configure automatic WinGet manifest publication for each release. WinGet lets Windows users install your application with commands such as `winget install YourCompany.MyApp`.
+[WinGet](https://learn.microsoft.com/windows/package-manager/winget/) is Windows' built-in package manager. Users can install your app from a terminal with a command such as `winget install YourCompany.MyApp`.
 
----
+This template sends a package update to Microsoft's community catalog. It is optional and off by default. Microsoft reviews and accepts the update before it appears in WinGet.
 
-## Prerequisites
+The update uses three small YAML files, called **manifests**, to describe the package, its version, and its installer.
 
-### Project prerequisites
+## Before you start
 
-Before publishing to WinGet, your project must provide:
+You need a Windows installer that can install silently, without opening questions or windows that need user input. This template uses Inno Setup. See [Build and Packaging](build-and-packaging.md#windows-installer-optional).
 
-1. A working Windows installer that supports silent installation.
-2. `ENABLE_WINDOWS_INSTALLER=1` in `project.mk`.
-3. A `.exe` release asset published on GitHub with a stable URL for each version.
-4. A unique package identifier in `Publisher.Package` format.
+Set `APPS_LIST` and the app's settings, then set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`. Add the installer path, usually `Output/*.exe`, to `RELEASE_ARTIFACTS`.
 
-WinGet validation is strict about these points:
+## 1. Fork the WinGet packages repository
 
-- the installer must support unattended installation
-- the installer URL must be public and use HTTPS
-- `InstallerSha256` must match the downloadable binary exactly
-- `Publisher` and `PackageName` must match what users see in Windows application metadata
+The official catalog is [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs). Create a fork under your GitHub account or organization. The template opens a pull request from your fork to Microsoft's repository; it does not publish directly to Microsoft.
 
-### External setup on GitHub
+## 2. Add a GitHub token
 
-#### 1. Fork `microsoft/winget-pkgs`
+Create a GitHub token that can write to your fork and open a pull request to `microsoft/winget-pkgs`. In your project repository, open **Settings → Environments**, create an environment named `winget`, and add a secret called `WINGET_GITHUB_TOKEN`. An environment is a named place for release settings and private secrets. If you use another environment name, set `CI_WINGET_ENVIRONMENT` in `project.mk` to match.
 
-Open the official repository at `https://github.com/microsoft/winget-pkgs`, click `Fork`, and create a fork under your user or organization, for example `your-user/winget-pkgs`.
+Keep the token secret. Do not put it in `project.mk` or commit it to the repository.
 
-The template does not publish directly to Microsoft's repository. It pushes a branch to your fork and then opens a pull request against `microsoft/winget-pkgs`.
+## 3. Set the package details in `project.mk`
 
-#### 2. Create a GitHub Personal Access Token
+Edit the existing `CI_WINGET_...` settings:
 
-Create a token from GitHub settings. The simplest option is a classic token with `repo` scope because the workflow needs to:
+- `CI_WINGET_FORK_REPO`: your fork, such as `yourname/winget-pkgs`
+- `CI_WINGET_PACKAGE_IDENTIFIER`: a unique ID in `Publisher.AppName` form, such as `YourCompany.MyApp`
+- `CI_WINGET_PACKAGE_NAME` and `CI_WINGET_PUBLISHER`: the names users see in Windows
+- `CI_WINGET_LICENSE`, `CI_WINGET_LICENSE_URL`, `CI_WINGET_HOMEPAGE`, and `CI_WINGET_SHORT_DESCRIPTION`: real package information
+- `CI_WINGET_INSTALLER_URL`: the public GitHub Release URL; keep the `{version}` placeholder and use the actual installer filename
+- `CI_WINGET_INSTALLER_FILE`: the path to that installer in the release build, usually already set by the template
+- `CI_ENABLE_WINGET_PUBLISH`: set to `1` after the fork, token, and installer are ready
 
-- push to your fork
-- create a pull request against the upstream repository
+Update the existing lines rather than adding a second copy of them.
 
-Save the token immediately because GitHub will not show it again.
+## 4. Push a release tag
 
-#### 3. Create a GitHub environment
+When you push a version tag, GitHub builds the Windows installer once. That exact Windows build is attached to the GitHub Release and downloaded by the WinGet job. The job calculates a SHA-256 fingerprint from this installer and writes it into the manifest. WinGet uses it to check that the downloaded file is the same installer.
 
-In the repository that uses this template:
+The job creates the three manifest files and opens a pull request to Microsoft's repository. Microsoft reviews the pull request; the package is available in WinGet after it is accepted.
 
-1. Go to `Settings -> Environments`
-2. Create the `winget` environment
-3. Add the `WINGET_GITHUB_TOKEN` secret with the token created above
+## Optional: check the manifest on Windows
 
-You can use a different environment name, but it must match `CI_WINGET_ENVIRONMENT` in `project.mk`.
+The release workflow handles the build and hash for you, so local setup is optional. To check locally, use Git Bash or MSYS2 on Windows. The asset build installs Inno Setup with Chocolatey; see [Getting Started](getting-started.md#optional-homebrew-and-chocolatey) first.
 
----
-
-## Template configuration
-
-Set at least these variables in `project.mk`:
-
-```makefile
-CI_ENABLE_WINGET_PUBLISH ?= 1
-CI_WINGET_ENVIRONMENT ?= winget
-CI_WINGET_FORK_REPO ?= your-user/winget-pkgs
-CI_WINGET_PACKAGE_IDENTIFIER ?= YourCompany.MyApp
-CI_WINGET_PACKAGE_NAME ?= My App
-CI_WINGET_PUBLISHER ?= Your Company
-CI_WINGET_PACKAGE_LOCALE ?= en-US
-CI_WINGET_SHORT_DESCRIPTION ?= Windows installer for My App
-CI_WINGET_LICENSE ?= MIT # replace with your actual license
-CI_WINGET_LICENSE_URL ?= https://github.com/your-org/your-repo/blob/main/LICENSE # replace with the real URL
-CI_WINGET_HOMEPAGE ?= https://github.com/your-org/your-repo # replace with the real URL
-CI_WINGET_TAGS ?= python cli
-CI_WINGET_INSTALLER_URL ?= https://github.com/your-org/your-repo/releases/download/v{version}/myapp-setup.exe # replace with the real URL
-CI_WINGET_INSTALLER_TYPE ?= inno
-CI_WINGET_INSTALLER_ARCHITECTURE ?= x64
-CI_WINGET_INSTALLER_FILE ?= Output/myapp-setup.exe
-```
-
-Important notes:
-
-- `CI_WINGET_PACKAGE_IDENTIFIER` must be unique across WinGet.
-- `CI_WINGET_INSTALLER_URL` must point to the real GitHub Release asset.
-- `CI_WINGET_INSTALLER_TYPE` is normally `inno` for this template.
-- `CI_WINGET_INSTALLER_FILE` is the local file used to calculate `InstallerSha256`.
-
----
-
-## What the template provides
-
-The template now includes:
-
-- `../.github/workflows/publish-winget.yml`
-- `make ci-build-winget-assets`
-- `make ci-generate-winget-manifests`
-- `make ci-validate-winget-manifests`
-- `make ci-publish-winget`
-
-The automation flow is:
-
-1. GitHub Actions reads configuration from `project.mk`.
-2. It builds the Windows assets needed by the manifest.
-3. It generates the three WinGet manifest files.
-4. It validates them with `winget validate` when the command is available.
-5. It clones your `winget-pkgs` fork.
-6. It copies the generated manifests into the path required by Microsoft.
-7. It pushes a branch to your fork.
-8. It opens a pull request to `microsoft/winget-pkgs`.
-
----
-
-## Generated manifests
-
-The template generates the multi-file format recommended by Microsoft:
-
-- `PackageIdentifier.yaml` for the version manifest
-- `PackageIdentifier.locale.en-US.yaml` for the default locale metadata
-- `PackageIdentifier.installer.yaml` for installer metadata
-
-The generated files are written under a path like this:
-
-```text
-dist/winget/manifests/y/YourCompany/MyApp/1.2.3/
-```
-
-This matches the repository convention:
-
-```text
-manifests/<publisher-first-letter>/<Publisher>/<Package>/<Version>/
-```
-
----
-
-## Recommended local testing
-
-Before enabling the workflow, test the flow on Windows.
-
-### 1. Build the installer
-
-```powershell
+```sh
+make install-pyinstaller
 make ci-build-winget-assets
-```
-
-### 2. Generate the manifests
-
-```powershell
 make ci-generate-winget-manifests
-```
-
-### 3. Validate the manifests
-
-```powershell
 make ci-validate-winget-manifests
 ```
 
-### 4. Inspect the generated metadata
+Review the files in `dist/winget/`. Check that the package ID, version, installer URL, publisher, and package name are correct. Run a test installation in Windows Sandbox before asking Microsoft to accept the package.
 
-Verify that:
+## If publishing fails
 
-- `PackageIdentifier` is correct
-- `PackageVersion` matches the release
-- `InstallerUrl` points to the real asset
-- `InstallerSha256` was calculated from the correct file
-- `Publisher` and `PackageName` match the Windows installed-app metadata
-
-### 5. Verify unattended installation
-
-For Inno Setup installers, test at least this command:
-
-```powershell
-Output\myapp-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
-```
-
-Microsoft also recommends testing the manifest in Windows Sandbox before the first submission.
-
----
-
-## How publication actually works
-
-The workflow in `../.github/workflows/publish-winget.yml` is called by `release.yml` after the CI gate, configured asset builds, and GitHub Release publication succeed. It runs only when `CI_ENABLE_WINGET_PUBLISH=1`.
-
-A typical flow looks like this:
-
-```text
-make release-patch-tag
--> release.yml publishes the release and uploads the installer
--> publish-winget.yml generates the manifests
--> publish-winget.yml opens a pull request against microsoft/winget-pkgs
--> Microsoft validates the pull request
--> the package enters the WinGet catalog
-```
-
-WinGet does not publish directly from your repository. The package becomes available only after Microsoft accepts the pull request in `microsoft/winget-pkgs`.
-
----
-
-## Microsoft review process
-
-After the pull request is created, Microsoft runs automated validation and may also perform manual review. The published documentation highlights checks such as:
-
-- manifest syntax and schema validation
-- repository path validation
-- installer URL availability
-- SHA256 hash verification
-- silent install and uninstall behavior
-- security and antivirus checks
-
-Common outcomes to expect:
-
-- the first package often receives more manual review
-- packages can be rejected if silent installation is not reliable
-- pull requests may be closed if feedback is not addressed
-- only one package version should be submitted per pull request
-
----
-
-## Practical checks before opening a pull request
-
-Before submitting, confirm that:
-
-1. The installer URL is public and uses HTTPS.
-2. The URL content does not change after the release is published.
-3. The binary is not rebuilt after `InstallerSha256` is generated.
-4. Silent installation really works without blocking UI.
-5. `Publisher` and `PackageName` match Add/Remove Programs metadata.
-6. The package identifier does not conflict with an existing WinGet package.
-
-You can search locally with:
-
-```powershell
-winget search MyApp
-```
-
-It is also worth searching the `microsoft/winget-pkgs` repository before deciding on `CI_WINGET_PACKAGE_IDENTIFIER`.
-
----
-
-## Troubleshooting
-
-| Problem | Likely cause | Fix |
-|---------|--------------|-----|
-| Workflow does not start | `CI_ENABLE_WINGET_PUBLISH=0` | Set it to `1` in `project.mk` |
-| Fork-related error | `CI_WINGET_FORK_REPO` is wrong or the fork does not exist | Create the fork and fix the value |
-| GitHub authentication error | Missing secret or expired token | Regenerate the token and update `WINGET_GITHUB_TOKEN` |
-| Manifest validation error | Invalid YAML or invalid fields | Run `make ci-validate-winget-manifests` and correct the manifest |
-| Hash mismatch | The installer changed or the URL points to a different file | Regenerate the manifest and make sure the local file matches the release asset |
-| Installer availability error | The URL is not public or the filename is wrong | Check the GitHub Release asset URL |
-| `Validation-Unattended-Failed` | The installer is not fully silent | Test the Inno Setup silent switches manually |
-| `Validation-Domain` or `Validation-Indirect-URL` | The installer URL is not considered direct or trusted enough | Use the direct publisher-controlled release asset URL |
-| Pull request already exists | The workflow was rerun for the same version | The target detects the existing pull request and does not open a second one |
-
----
-
-## WinGet and Chocolatey together
-
-If you already ship a Windows installer, supporting both WinGet and Chocolatey is often useful:
-
-- Chocolatey is common in environments standardized on `choco`
-- WinGet is Microsoft's native package catalog and integrates well with modern Windows setups
-
-The two channels complement each other. This template can now drive both from the same Inno Setup installer.
+- Check that the fork exists and `CI_WINGET_FORK_REPO` uses `owner/winget-pkgs` format.
+- Check the `winget` environment contains the `WINGET_GITHUB_TOKEN` secret and that the token can access the fork.
+- Make sure `CI_WINGET_INSTALLER_URL` points to the public release asset and its filename matches the installer.
+- If Microsoft rejects the pull request, read its feedback and correct the project settings or installer before sending an update.

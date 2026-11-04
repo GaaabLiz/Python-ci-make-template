@@ -1,55 +1,63 @@
 # Troubleshooting
 
-## Platform release assets do not match `RELEASE_ARTIFACTS`
+## `make` or `uv` says "command not found"
 
-Check these first:
+Install the missing tool, close and reopen your terminal, then check again with `make --version` or `uv --version`. On Windows, run Make from Git Bash/MSYS2 or WSL rather than directly from PowerShell.
 
-- check that the matching `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `CI_BUILD_WINDOWS` flag is enabled
-- run `make ci-build-release-assets` on the matching platform
-- run `make ci-list-build-artifacts`
-- confirm `RELEASE_ARTIFACTS` matches the generated files
-- if your project is package-only, leave all `CI_BUILD_*` values at 0; CI builds and publishes the Python distributions separately
-- if your project ships installers, add installer paths such as `Output/*.exe`
+## Dependency installation fails
 
-## CI does not run tests
+Check that `pyproject.toml` is valid and that `uv.lock` matches it. After changing dependencies, run:
 
-Check:
+```sh
+uv lock
+make install-dev
+```
 
-- `CI_TEST_COMMAND` and its arguments
-- whether test dependencies are declared in the `dev` group
-- whether `CI_PYTHON_VERSIONS` and `CI_TEST_OS_MATRIX` contain valid JSON arrays
+Commit the updated `uv.lock` file.
 
-Use `make ci-log-config` locally to verify the effective values.
+## Tests do not run
 
-## PyInstaller builds do nothing
+Check that `TESTS_PATH` in `project.mk` points to your tests. If you use another test tool, set `CI_TEST_COMMAND` to the command that runs it. Make sure the test tool is in the `dev` dependency group in `pyproject.toml`.
 
-If `APPS_LIST` is empty, executable targets log a skip by design.
+## CI says a setting is missing or invalid
 
-Set:
+Run `make ci-log-config` and `make ci-validate-config`. Check the reported values in `project.mk`. Python versions in `CI_PYTHON_VERSIONS` must be valid JSON and fall within the range in `pyproject.toml`.
 
-- `APPS_LIST`
-- `<app>_NAME`
-- `<app>_MAIN`
-- `<app>_ICO`
-- `<app>_ICNS`
+## App files are missing from a release
+
+Check that:
+
+1. The matching `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `CI_BUILD_WINDOWS` value is `1`.
+2. `APPS_LIST` and its `<app>_NAME`, `<app>_MAIN`, `<app>_ICO`, and `<app>_ICNS` values are set if you build PyInstaller apps.
+3. The matching Windows installer settings are set if you build an installer.
+4. `RELEASE_ARTIFACTS` in `project.mk` matches the files the build creates.
+
+Run `make ci-list-build-artifacts` on the matching operating system to see the files. A Python-only package does not need any `CI_BUILD_*` option enabled.
+
+## PyInstaller uses an old version or fails to find `project.py`
+
+The module path is set by `FILE_PROJECT_PY_GENERATED` in `project.mk`. `make build` and the release asset job generate the module before packaging. If building locally, run:
+
+```sh
+make gen-project-module
+make build-exe-onefile
+```
 
 ## Windows installer build fails
 
-Check:
+Confirm `ENABLE_WINDOWS_INSTALLER=1`, `INNO_APP_EXE` points to the built executable, and `INNO_APP_ICON` points to an existing `.ico` file. Inno Setup must be installed on the Windows machine. `make install-inno` installs it with Chocolatey; see [Getting Started](getting-started.md#optional-homebrew-and-chocolatey).
 
-- `ENABLE_WINDOWS_INSTALLER=1`
-- `INNO_APP_EXE` points to the actual built executable
-- `INNO_APP_ICON` points to a real `.ico` file
-- Inno Setup is available on the Windows runner or local machine
+## Logo icon generation fails
 
-## Logo conversion errors
+The input must be an SVG file. Install the optional graphics dependencies, then try:
 
-`make gen-logo-icons` expects an SVG input.
-
-Example:
-
-```bash
+```sh
+uv sync --group graphics
 make gen-logo-icons SVG=resources/logo.svg
 ```
 
-The command uses `.mk/scripts.py convert-logo`, `skia-python`, and Pillow from the optional `graphics` dependency group.
+The generated icons are written beside the SVG file.
+
+## Publisher job does not run
+
+Publisher jobs are off by default. Follow the setup guide for that service, add its required secret to the GitHub environment, and then set the matching `CI_ENABLE_..._PUBLISH=1` value in `project.mk`. Check the failed or skipped job in GitHub Actions for details.

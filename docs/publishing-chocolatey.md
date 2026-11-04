@@ -1,152 +1,81 @@
 # Publishing to Chocolatey
 
-This guide explains how to configure automatic Chocolatey publication for each release. Chocolatey is a Windows package manager and lets users install your app with `choco install myapp`.
+[Chocolatey](https://chocolatey.org/) is a package manager for Windows. Users install your app from a Windows terminal with a command such as `choco install myapp`.
 
----
+Publishing to Chocolatey is optional. You do not need Chocolatey installed on your computer for the GitHub release workflow to publish a package. It is useful to install it if you want to test the package locally.
 
-## Prerequisites
+## Before you start
 
-### Project prerequisites
+This template's Chocolatey package installs a Windows installer that is attached to your GitHub Release. You need to:
 
-Before publishing to Chocolatey, your project must have:
+1. Configure a PyInstaller app and Inno Setup installer. See [Build and Packaging](build-and-packaging.md#windows-installer-optional).
+2. Set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`.
+3. Add the installer path, usually `Output/*.exe`, to `RELEASE_ARTIFACTS`.
+4. Make sure the installer can run silently, without asking the user questions.
 
-1. A working Windows installer. Chocolatey downloads and installs your `.exe` silently.
-2. `ENABLE_WINDOWS_INSTALLER=1` in `project.mk`.
-3. A GitHub Release that includes the installer executable as an asset.
+## 1. Create your Chocolatey account and package
 
-If the Windows installer is not set up yet, start with [build-and-packaging.md](build-and-packaging.md#windows-installer).
+1. Create an account at [Chocolatey Community](https://community.chocolatey.org/account/Register).
+2. Search [existing packages](https://community.chocolatey.org/packages) to make sure your package ID is available.
+3. Create an API key from your Chocolatey account settings. Keep it private.
 
-### On Chocolatey.org
+Chocolatey reserves the package ID when you publish your first version.
 
-1. Create an account at [community.chocolatey.org](https://community.chocolatey.org/account/Register).
-2. Get your API key from `Account -> API Keys`.
-3. Check whether your package ID is already taken by searching [community.chocolatey.org/packages](https://community.chocolatey.org/packages).
+## 2. Add the secret to GitHub
 
-The first successful push reserves the package ID. You do not need to register it separately.
+In your GitHub repository, open **Settings → Environments** and create an environment named `chocolatey`. An environment is a named place for release settings and private secrets. Add a secret named `CHOCOLATEY_API_KEY` and set its value to the API key from Chocolatey. If you choose another environment name, set `CI_CHOCOLATEY_ENVIRONMENT` in `project.mk` to match.
 
-### On GitHub
+## 3. Set Chocolatey details in `project.mk`
 
-4. Create an environment from `Settings -> Environments -> New environment`.
-   - Use `chocolatey` unless you also change `CI_CHOCOLATEY_ENVIRONMENT` in `project.mk`.
-5. Add this secret to the `chocolatey` environment:
+Edit the existing settings in `project.mk`:
 
-   | Secret | Value |
-   |--------|-------|
-   | `CHOCOLATEY_API_KEY` | The API key copied from Chocolatey |
+- `CI_CHOCOLATEY_PACKAGE_ID`: the name users type after `choco install`
+- `CI_CHOCOLATEY_PACKAGE_TITLE` and `CI_CHOCOLATEY_AUTHORS`: the display name and publisher
+- `CI_CHOCOLATEY_PROJECT_URL` and `CI_CHOCOLATEY_LICENSE_URL`: real HTTPS links
+- `CI_CHOCOLATEY_SUMMARY` and `CI_CHOCOLATEY_DESCRIPTION`: short and full package descriptions
+- `CI_CHOCOLATEY_INSTALLER_URL`: the public URL for the GitHub Release installer
 
----
+For example, the installer URL should look like:
 
-## Template configuration
-
-Update the Chocolatey settings in `project.mk`:
-
-```makefile
-CI_ENABLE_CHOCOLATEY_PUBLISH ?= 1
-CI_CHOCOLATEY_PACKAGE_ID ?= myapp
-CI_CHOCOLATEY_PACKAGE_TITLE ?= My App
-CI_CHOCOLATEY_AUTHORS ?= Your Name
-CI_CHOCOLATEY_PROJECT_URL ?= https://github.com/your-org/your-repo
-CI_CHOCOLATEY_LICENSE_URL ?= https://github.com/your-org/your-repo/blob/main/LICENSE
-CI_CHOCOLATEY_TAGS ?= python cli utility
-CI_CHOCOLATEY_SUMMARY ?= Windows package for My App
-CI_CHOCOLATEY_DESCRIPTION ?= My App packaged from the GitHub release artifacts.
-CI_CHOCOLATEY_INSTALLER_URL ?= https://github.com/your-org/your-repo/releases/download/v{version}/myapp-setup.exe
-CI_CHOCOLATEY_SILENT_ARGS ?= /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+```text
+https://github.com/OWNER/REPOSITORY/releases/download/v{version}/myapp-setup.exe
 ```
 
-Make sure these values stay aligned:
+`{version}` is replaced with the version being released. The filename must match the installer name configured by `INNO_OUTPUT_BASE_FILENAME`. Set `CI_CHOCOLATEY_SILENT_ARGS` to the silent-install options supported by your installer; the provided Inno Setup example already uses silent options.
 
-- `CI_CHOCOLATEY_INSTALLER_URL` must point to the actual GitHub Release asset.
-- The filename in the URL must match `INNO_OUTPUT_BASE_FILENAME` plus `.exe`.
-- The installer must support the silent flags in `CI_CHOCOLATEY_SILENT_ARGS`.
+Then set `CI_ENABLE_CHOCOLATEY_PUBLISH` to `1`. Change the existing lines in `project.mk`; do not add a duplicate block. Keep your API key only in the GitHub environment secret.
 
----
+## 4. Publish a release
 
-## Local testing on Windows
+Push a version tag such as `v1.2.3`. GitHub builds the Windows installer, adds it to the release, creates the Chocolatey package, and sends it to Chocolatey for review. The package may not appear in search until the review is complete.
+
+## Optional: install Chocolatey to test locally
+
+You can skip this if you only want automatic GitHub publishing. If you want to build or install a package locally, install Chocolatey by following its [official setup guide](https://docs.chocolatey.org/en-us/choco/setup/). The guide includes a WinGet install option. For example, in PowerShell:
 
 ```powershell
-make build-installer
+winget install --id chocolatey.chocolatey --source winget
+```
+
+Open a new terminal and check `choco --version`. In Git Bash, build the installer and the Chocolatey package:
+
+```sh
+make install-pyinstaller
+make ci-build-chocolatey-assets
 make ci-pack-chocolatey
-choco install dist/chocolatey/myapp.1.0.0.nupkg --source . --yes
-myapp --version
-choco uninstall myapp --yes
 ```
 
----
+The package file is written to `dist/chocolatey/`. To install a package after its installer URL is available in a GitHub Release, use an elevated PowerShell or Command Prompt:
 
-## How the workflow works
-
-The workflow in `../.github/workflows/publish-chocolatey.yml` is called by `release.yml` after the CI gate, configured asset builds, and GitHub Release publication succeed. It runs only when `CI_ENABLE_CHOCOLATEY_PUBLISH=1`.
-
-The workflow does the following:
-
-1. Install `make` and `uv` on the Windows runner.
-2. Build Windows release assets with `make ci-build-chocolatey-assets`.
-3. Generate the `.nuspec` and `chocolateyinstall.ps1` files with `make ci-pack-chocolatey`.
-4. Push the `.nupkg` to Chocolatey with `make ci-publish-chocolatey`.
-
-`ci-pack-chocolatey` generates:
-
-```text
-.chocolatey/
-|-- myapp.nuspec
-`-- tools/
-    `-- chocolateyinstall.ps1
-
-dist/chocolatey/
-`-- myapp.1.2.3.nupkg
+```powershell
+choco install dist/chocolatey/myapp.1.2.3.nupkg --source . --yes
 ```
 
----
+Replace the example filename with the package file in `dist/chocolatey/`. To remove a locally installed test package, run `choco uninstall myapp --yes`.
 
-## Chocolatey moderation
+## If publishing fails
 
-After the first push to the community feed, the package goes through automated checks and sometimes manual moderation.
-
-Typical checks include:
-
-- package structure validation
-- installer download validation
-- checksum verification
-- antivirus and reputation checks
-- metadata and packaging guideline review
-
-Typical timing:
-
-- automated validation: minutes
-- first package manual review: often 1 to 7 days
-- later updates: often much faster if the package stays consistent
-
-To reduce moderation delays:
-
-- keep `CI_CHOCOLATEY_INSTALLER_URL` public and stable
-- provide clear project metadata
-- verify the installer is fully silent
-- keep the same package ID after the first release
-
----
-
-## Typical release flow
-
-```text
-make release-patch-tag
--> push tag v1.2.3
--> release.yml publishes the installer asset
--> publish-chocolatey.yml generates and pushes the package
--> Chocolatey validates it
--> users can run choco install myapp
-```
-
----
-
-## Troubleshooting
-
-| Problem | Likely cause | Fix |
-|---------|--------------|-----|
-| Workflow does not start | `CI_ENABLE_CHOCOLATEY_PUBLISH=0` | Set it to `1` in `project.mk` |
-| `API key is invalid` | Wrong secret value | Check `CHOCOLATEY_API_KEY` in the GitHub environment |
-| `No .nupkg file found` | Packaging step was not run | Run `make ci-pack-chocolatey` first |
-| Validation fails because the URL is unavailable | Release is private or the URL is wrong | Verify the GitHub Release asset URL |
-| Validation fails because installation times out | Silent flags are not correct | Test the installer locally with `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-` |
-| Package is rejected in moderation | Metadata or package behavior does not meet guidelines | Review the moderator feedback and update the package |
-| Version conflict | The same version already exists on Chocolatey | Bump the version and publish again |
+- Confirm `CI_ENABLE_CHOCOLATEY_PUBLISH=1` and `CI_BUILD_WINDOWS=1` in `project.mk`.
+- Check the GitHub environment name and the `CHOCOLATEY_API_KEY` secret.
+- Make sure the release installer URL is public and points to the right filename.
+- If installation fails during review, test the installer with the silent options in `CI_CHOCOLATEY_SILENT_ARGS`.

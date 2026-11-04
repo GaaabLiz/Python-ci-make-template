@@ -1,74 +1,67 @@
 # Development Workflow
 
-The normal local workflow is Make-based.
+Run commands from the repository folder. All commands are Make targets, so they begin with `make`.
 
-## Environment setup
+## Prepare your environment
 
-Install the core development dependencies used by CI (pytest and Ruff):
+After installing `uv` and Make, run this once (and again after changing dependencies):
 
-```bash
+```sh
 make install-dev
 ```
 
-Install all dependency groups and build once:
+This installs the project's development dependencies, including its test and code-check tools.
 
-```bash
-make install-all
+## Check and test your code
+
+```sh
+make lint          # find common code problems
+make format-check  # check formatting without changing files
+make test          # run tests
+make qa             # run the configured code checks and tests
 ```
 
-## Quality commands
+To fix supported lint issues automatically, run `make lint-fix`. To format files, run `make format`.
 
-- `make lint`: Ruff lint checks
-- `make lint-fix`: Ruff lint with safe autofixes
-- `make format`: Ruff formatter
-- `make format-check`: formatting check without changes
-- `make type-check`: static analysis through `ty`
-- `make test`: run pytest using `TESTS_PATH`
-- `make test-cov`: pytest plus terminal coverage report
-- `make qa`: the configured CI quality targets plus tests; add `type-check` to `CI_QUALITY_TARGETS` to enable ty
+`make qa` uses the quality targets listed in `CI_QUALITY_TARGETS` in `project.mk`, then runs tests. Type checking is optional; add `type-check` to that list if you use the `ty` tool.
 
-## Useful CI-oriented local checks
+## Build the package
 
-- `make ci-log-config`: print the effective CI and release settings
-- `make ci-quality`: run the same static quality checks used in CI
-- `make ci-test`: run the required CI test command from `CI_TEST_COMMAND`
-- `make ci-list-build-artifacts`: print the current artifact directories and patterns
+```sh
+make build
+```
 
-## Generated metadata and logo assets
+The command writes a Python wheel and a source archive to `dist/`. It also creates a small Python file containing the name and version from `pyproject.toml`.
 
-The template uses `.mk/scripts.py` as an internal helper entrypoint.
+## Helpful CI commands
 
-Generate the Python metadata module:
+- `make ci-log-config`: print the settings that CI will use
+- `make ci-quality`: run the same code checks used in CI
+- `make ci-test`: run the test command set in `CI_TEST_COMMAND`
+- `make ci-list-build-artifacts`: show files that could be included in a release
 
-```bash
+If something fails, check that `project.mk`, `pyproject.toml`, and `uv.lock` agree. See [Troubleshooting](troubleshooting.md) for common fixes.
+
+## Generate optional files
+
+Generate the Python metadata module by itself:
+
+```sh
 make gen-project-module
 ```
 
-Generate PNG, JPG, ICO, and ICNS assets from an SVG logo:
+Generate app icons from an SVG logo:
 
-```bash
+```sh
+uv sync --group graphics
 make gen-logo-icons SVG=resources/logo.svg
 ```
 
-Direct script usage is also available when needed:
+Generate API documentation with `pdoc` (requires the `docs` dependency group):
 
-```bash
-uv run python .mk/scripts.py gen-project-module pyproject.toml myapp/project.py
-uv run --group graphics python .mk/scripts.py convert-logo resources/logo.svg
-```
-
-## Documentation generation
-
-Generate API documentation with pdoc:
-
-```bash
+```sh
+uv sync --group docs
 make docs
 ```
 
-Generated API pages go to `docs/api/`; authored guides in `docs/` are preserved by `make clean-all`.
-
-Open generated docs locally:
-
-```bash
-make docs-open
-```
+The generated API pages go in `docs/api/`. The authored guides in `docs/` remain in place when you run `make clean-all`.

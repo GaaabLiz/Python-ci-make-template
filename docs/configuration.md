@@ -1,80 +1,85 @@
 # Configuration
 
-This is an opinionated template for GitHub Actions projects managed with uv and GNU Make. It uses PEP 621 project metadata and Hatchling in the example pyproject.toml. Projects using another backend can keep uv build if their backend is declared in pyproject.toml; projects not using uv or Make need a different setup command.
+Start with two files:
 
-## pyproject.toml
+- `pyproject.toml` describes the Python package: its name, version, dependencies, and the versions of Python it supports.
+- `project.mk` sets the options for this particular project: which package folder to build, where tests are, which Python versions to check, and which optional release features to use.
 
-Set the project name, version, description, supported Python range, runtime dependencies, and the build backend. Update the Hatchling package configuration for the project's package layout, including src-layout or multiple packages.
+`Makefile` contains commands shared by all projects using the template. Do not put project-specific settings there. Normally, you do not need to edit it. Add or change a rule there only when it is a reusable command, not a setting for one project.
 
-The sample dependency groups keep optional developer tools separate:
+## Basic settings
 
-- dev: pytest, pytest-cov, and Ruff, installed by CI
-- build: PyInstaller, installed only for native executable release jobs
-- typing: ty, selected when type checking is enabled
-- docs: pdoc, selected when generating API documentation
-- graphics: SVG and icon conversion libraries, selected by logo generation
+Open `project.mk` and check these values:
 
-After changing dependencies or groups, update and commit uv.lock.
+| Setting | What it means | Example |
+| --- | --- | --- |
+| `PYTHON_MAIN_PACKAGE` | Name of the Python package folder to import | `myapp` |
+| `FILE_PROJECT_TOML` | Path to your package metadata file | `pyproject.toml` |
+| `TESTS_PATH` | Folder containing your tests | `tests` |
+| `CI_PYTHON_VERSION` | Python version used for code checks and builds | `3.14` |
+| `CI_PYTHON_VERSIONS` | Python versions tested in GitHub Actions | `["3.11", "3.12", "3.13", "3.14"]` |
+| `CI_TEST_OS_MATRIX` | Operating systems used for tests | `["ubuntu-latest"]` for Linux only |
+| `CI_TEST_COMMAND` | Command used to run your tests | Default: `uv run pytest $(TESTS_PATH)` |
+| `CI_DOCKER_ENTRYPOINT` | Command that starts the app in its Docker image | Default: `python -m $(PYTHON_MAIN_PACKAGE)` |
 
-## project.mk
+Keep the Python versions here inside the range declared by `requires-python` in `pyproject.toml`. If your project uses a different test tool, set `CI_TEST_COMMAND` to its command.
 
-### Package and tests
+The example `pyproject.toml` uses the standard Python project format and Hatchling to build the package files. Most projects can keep this setup and change the package details and dependencies. If you choose another build tool, declare it in `pyproject.toml`.
 
-- PYTHON_MAIN_PACKAGE: importable package name; used for metadata generation and package smoke tests
-- FILE_PROJECT_TOML: normally pyproject.toml
-- FILE_PROJECT_PY_GENERATED: optional generated module containing project metadata
-- TESTS_PATH: pytest arguments used by the default test command
-- CI_TEST_COMMAND: override the default pytest command for unittest, nox, tox, or project-specific test runners
+## Python dependencies
 
-CI tests always run. The former CI_RUN_TESTS skip toggle has been removed so a skipped test suite cannot report success.
+Add dependencies to `pyproject.toml`, not to `Makefile`. This template keeps optional tools in separate groups:
 
-### Python and quality matrix
+- `dev`: test and code-quality tools, installed by `make install-dev` and CI
+- `build`: PyInstaller, used only to build standalone apps
+- `typing`: the optional `ty` type checker
+- `docs`: the optional API documentation generator
+- `graphics`: tools used to turn an SVG logo into app icons
 
-- CI_PYTHON_VERSION: primary Python interpreter for quality checks and packaging
-- CI_PYTHON_VERSIONS: JSON array of supported Python versions tested in the matrix
-- CI_TEST_OS_MATRIX: JSON array of runner labels, such as ["ubuntu-latest"] for Linux-only projects
-- CI_UV_VERSION: exact uv version used by GitHub Actions
-- CI_GIT_CLIFF_VERSION: exact changelog generator version used by release automation
-- CI_QUALITY_TARGETS: Make targets run in CI; default is lint and format-check. Add type-check to opt into ty.
+After changing dependencies, run `uv lock` and commit the updated `uv.lock` file.
 
-Keep these values aligned with requires-python in pyproject.toml. The repository example supports Python 3.11 and newer, and tests Python 3.11 through 3.14 by default. Update the minimum version, Ruff target, and matrix together when adapting the template.
+## Python package or standalone app?
 
-### Release artifacts
+For a normal Python library or command-line package, keep `APPS_LIST` empty and leave the `CI_BUILD_*` values at `0`. The template still builds a wheel and a source archive for every release.
 
-The CI gate builds and smoke-tests wheel and sdist once. Those verified files are reused by the GitHub Release and optional PyPI publisher.
+To also build standalone apps with PyInstaller, set `APPS_LIST` and define the four values for each app. For example:
 
-- RELEASE_ARTIFACTS: glob patterns for platform executables and installers
-- CI_BUILD_LINUX, CI_BUILD_MACOS, CI_BUILD_WINDOWS: default to 0; set to 1 only when building application assets on that runner
-- ENABLE_WINDOWS_INSTALLER: enable Inno Setup packaging on Windows
+```makefile
+APPS_LIST := myapp
+myapp_NAME := myapp
+myapp_MAIN := myapp/__main__.py
+myapp_ICO := resources/logo.ico
+myapp_ICNS := resources/logo.icns
+```
 
-For package-only projects, leave all CI_BUILD_* values at 0. For application releases, configure APPS_LIST and its entry variables, set the required platform flags, and include produced files in RELEASE_ARTIFACTS. `PYINSTALLER_WINDOWED=1` is only for GUI apps; command-line apps should keep the console enabled.
+Then set `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `CI_BUILD_WINDOWS` to `1` for the platforms you need. Set `PYINSTALLER_WINDOWED=1` only for a graphical app. A command-line app should keep its terminal window.
 
-Configuration validation checks that each enabled app has a name and an existing entry-point file, plus the platform icon files needed by macOS and Windows builds. When Inno Setup is enabled, `INNO_APP_EXE` must match one configured Windows executable and `INNO_APP_ICON` must exist.
+For a Windows installer, also set `ENABLE_WINDOWS_INSTALLER=1` and review the `INNO_*` settings in `project.mk`. See [Build and Packaging](build-and-packaging.md).
 
-### Executables
+`RELEASE_ARTIFACTS` lists the app files and installers to attach to the GitHub Release. It does not control the Python wheel and source archive; those are handled separately.
 
-Set APPS_LIST only when producing PyInstaller executables. For each entry, define:
+## Publishing to package services
 
-- <app>_NAME
-- <app>_MAIN
-- <app>_ICO
-- <app>_ICNS
+All publishers are off by default. For each one, follow its guide first, then set the matching `CI_ENABLE_..._PUBLISH` value in `project.mk` to `1`:
 
-### Publication
+- PyPI: `CI_ENABLE_PYPI_PUBLISH` — [guide](publishing-pypi.md)
+- Docker Hub: `CI_ENABLE_DOCKERHUB_PUBLISH` — [guide](publishing-docker.md)
+- Chocolatey: `CI_ENABLE_CHOCOLATEY_PUBLISH` — [guide](publishing-chocolatey.md)
+- Homebrew: `CI_ENABLE_HOMEBREW_PUBLISH` — [guide](publishing-homebrew.md); it requires PyPI publication
+- WinGet: `CI_ENABLE_WINGET_PUBLISH` — [guide](publishing-winget.md)
 
-- CI_ENABLE_PYPI_PUBLISH uses Trusted Publishing from the top-level release.yml workflow; no PyPI API token is stored in GitHub secrets
-- CI_ENABLE_DOCKERHUB_PUBLISH — see publishing-docker.md
-- CI_ENABLE_CHOCOLATEY_PUBLISH — see publishing-chocolatey.md
-- CI_ENABLE_HOMEBREW_PUBLISH — requires PyPI publication and see publishing-homebrew.md
-- CI_ENABLE_WINGET_PUBLISH — see publishing-winget.md
+Before enabling a publisher, replace example names, URLs, and licenses with real project details. Add the required secret to the matching GitHub environment as described in that publisher's guide. The configuration check reports common missing values before a release.
 
-Publication jobs are called from release.yml after the CI gate and asset builds. Keep flags disabled until their GitHub environments and required secrets are configured.
-The configuration validator rejects placeholder publisher URLs and missing license metadata when a publisher is enabled. Set real project URLs, package identifiers, and SPDX licenses in `project.mk` first.
+A GitHub environment is a named place in repository settings for release settings and secrets. A secret is a private token or password used by a workflow; never put it in `project.mk` or commit it to Git.
 
-## First setup
+## Where do I put a change?
 
-1. Configure project metadata and supported Python range in pyproject.toml.
-2. Set CI_PYTHON_VERSION, CI_PYTHON_VERSIONS, CI_TEST_OS_MATRIX, and CI_TEST_COMMAND in project.mk.
-3. Update the package layout settings and generated metadata path.
-4. Choose package-only or platform asset release.
-5. Run make ci-log-config and confirm the printed values.
+- A name, URL, path, Python version, test command, or publisher setting for this project goes in `project.mk` (package metadata and dependencies go in `pyproject.toml`).
+- A command that should work in every project using the template goes in `Makefile`.
+- GitHub workflow files normally only need changes if you are changing how jobs run, not to set project values.
+
+To see the effective settings, run:
+
+```sh
+make ci-log-config
+```
