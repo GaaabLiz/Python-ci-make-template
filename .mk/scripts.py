@@ -293,7 +293,7 @@ def convert_logo(svg_path: Path) -> int:
 
 
 def validate_ci_config(
-    python_versions_json: str,
+    python_version: str,
     test_os_json: str,
     enable_pypi_publish: str,
     enable_homebrew_publish: str,
@@ -328,10 +328,12 @@ def validate_ci_config(
     pyinstaller_windowed: str,
 ) -> int:
     try:
-        for label, raw in (
-            ("CI_PYTHON_VERSIONS", python_versions_json),
-            ("CI_TEST_OS_MATRIX", test_os_json),
-        ):
+        if not re.fullmatch(r"\d+\.\d+", python_version):
+            raise ValueError(
+                "CI_PYTHON_VERSION must be one fixed major.minor version, such as 3.14."
+            )
+
+        for label, raw in (("CI_TEST_OS_MATRIX", test_os_json),):
             value = json.loads(raw)
             if not isinstance(value, list) or not value:
                 raise ValueError(f"{label} must be a non-empty JSON array.")
@@ -688,9 +690,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_ci_parser = subparsers.add_parser(
         "validate-ci-config",
-        help="Validate JSON CI matrices and publication dependencies.",
+        help="Validate the CI Python version, OS matrix, and publication dependencies.",
     )
-    validate_ci_parser.add_argument("python_versions_json")
+    validate_ci_parser.add_argument("python_version")
     validate_ci_parser.add_argument("test_os_json")
     validate_ci_parser.add_argument("enable_pypi_publish")
     validate_ci_parser.add_argument("enable_homebrew_publish")
@@ -725,7 +727,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate_ci_parser.add_argument("pyinstaller_windowed")
     validate_ci_parser.set_defaults(
         handler=lambda args: validate_ci_config(
-            args.python_versions_json,
+            args.python_version,
             args.test_os_json,
             args.enable_pypi_publish,
             args.enable_homebrew_publish,

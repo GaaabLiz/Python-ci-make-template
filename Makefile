@@ -572,7 +572,6 @@ ci-log-config:
 	@echo "[ci-log-config] PYTHON_MAIN_PACKAGE=$(PYTHON_MAIN_PACKAGE)"
 	@echo "[ci-log-config] TESTS_PATH=$(TESTS_PATH)"
 	@echo "[ci-log-config] CI_PYTHON_VERSION=$(CI_PYTHON_VERSION)"
-	@echo "[ci-log-config] CI_PYTHON_VERSIONS=$(CI_PYTHON_VERSIONS)"
 	@echo "[ci-log-config] CI_TEST_OS_MATRIX=$(CI_TEST_OS_MATRIX)"
 	@echo "[ci-log-config] CI_UV_VERSION=$(CI_UV_VERSION)"
 	@echo "[ci-log-config] CI_QUALITY_TARGETS=$(CI_QUALITY_TARGETS)"
@@ -609,11 +608,11 @@ ci-test:
 	@echo "[ci-test] Tests are required in CI"
 	$(MAKE) --no-print-directory test
 
-## ci-validate-config    – Validate CI matrices and publication dependencies
+## ci-validate-config    – Validate the CI Python version, OS matrix, and publication dependencies
 .PHONY: ci-validate-config
 ci-validate-config:
 	python3 .mk/scripts.py validate-ci-config \
-		'$(CI_PYTHON_VERSIONS)' '$(CI_TEST_OS_MATRIX)' \
+		'$(CI_PYTHON_VERSION)' '$(CI_TEST_OS_MATRIX)' \
 		'$(CI_ENABLE_PYPI_PUBLISH)' '$(CI_ENABLE_HOMEBREW_PUBLISH)' \
 		'$(CI_ENABLE_DOCKERHUB_PUBLISH)' '$(CI_DOCKERHUB_IMAGE)' \
 		'$(CI_ENABLE_CHOCOLATEY_PUBLISH)' \
@@ -664,7 +663,6 @@ ci-export-config:
 	fi
 	@echo "[ci-export-config] Exporting CI configuration to $$GITHUB_OUTPUT"
 	@printf 'python_version=%s\n' '$(CI_PYTHON_VERSION)' >> "$$GITHUB_OUTPUT"
-	@printf 'python_versions=%s\n' '$(CI_PYTHON_VERSIONS)' >> "$$GITHUB_OUTPUT"
 	@printf 'test_os_matrix=%s\n' '$(CI_TEST_OS_MATRIX)' >> "$$GITHUB_OUTPUT"
 	@printf 'uv_version=%s\n' '$(CI_UV_VERSION)' >> "$$GITHUB_OUTPUT"
 	@echo "release_branch=$(RELEASE_CHANGELOG_TARGET_BRANCH)" >> "$$GITHUB_OUTPUT"

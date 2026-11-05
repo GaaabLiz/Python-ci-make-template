@@ -90,13 +90,10 @@ TESTS_PATH ?= tests
 # Minimum code coverage threshold (percentage) required by test-cov-verify.
 MIN_COVERAGE ?= 80
 
-# Primary Python version used for quality checks, packaging, and release assets.
+# Single Python version used by CI tests, quality checks, builds, and release assets.
 CI_PYTHON_VERSION ?= 3.14
 
-# JSON arrays used by the CI workflow. Keep these aligned with `requires-python`.
-# Example for a library supporting Python 3.11 through 3.14:
-#   CI_PYTHON_VERSIONS ?= ["3.11", "3.12", "3.13", "3.14"]
-CI_PYTHON_VERSIONS ?= ["3.11", "3.12", "3.13", "3.14"]
+# Operating systems used for the test job. Python stays fixed at CI_PYTHON_VERSION.
 CI_TEST_OS_MATRIX ?= ["ubuntu-latest", "macos-latest", "windows-latest"]
 
 # Pin uv so upstream releases cannot silently change CI behavior.

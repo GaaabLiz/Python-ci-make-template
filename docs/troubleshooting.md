@@ -21,7 +21,7 @@ Check that `TESTS_PATH` in `project.mk` points to your tests. If you use another
 
 ## CI says a setting is missing or invalid
 
-Run `make ci-log-config` and `make ci-validate-config`. Check the reported values in `project.mk`. Python versions in `CI_PYTHON_VERSIONS` must be valid JSON and fall within the range in `pyproject.toml`.
+Run `make ci-log-config` and `make ci-validate-config`. Check the reported values in `project.mk`. `CI_PYTHON_VERSION` must be one major.minor version, such as `3.14`, and should match the Python requirement in `pyproject.toml`.
 
 ## App files are missing from a release
 

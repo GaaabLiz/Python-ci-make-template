@@ -2,8 +2,8 @@
 
 Start with two files:
 
-- `pyproject.toml` describes the Python package: its name, version, dependencies, and the versions of Python it supports.
-- `project.mk` sets the options for this particular project: which package folder to build, where tests are, which Python versions to check, and which optional release features to use.
+- `pyproject.toml` describes the Python package: its name, version, dependencies, and required Python version.
+- `project.mk` sets the options for this particular project: which package folder to build, which Python version to use in CI, where tests are, and which optional release features to use.
 
 `Makefile` contains commands shared by all projects using the template. Do not put project-specific settings there. Normally, you do not need to edit it. Add or change a rule there only when it is a reusable command, not a setting for one project.
 
@@ -16,13 +16,12 @@ Open `project.mk` and check these values:
 | `PYTHON_MAIN_PACKAGE` | Name of the Python package folder to import | `myapp` |
 | `FILE_PROJECT_TOML` | Path to your package metadata file | `pyproject.toml` |
 | `TESTS_PATH` | Folder containing your tests | `tests` |
-| `CI_PYTHON_VERSION` | Python version used for code checks and builds | `3.14` |
-| `CI_PYTHON_VERSIONS` | Python versions tested in GitHub Actions | `["3.11", "3.12", "3.13", "3.14"]` |
-| `CI_TEST_OS_MATRIX` | Operating systems used for tests | `["ubuntu-latest"]` for Linux only |
+| `CI_PYTHON_VERSION` | One Python major and minor version used for tests, code checks, builds, and release assets | `3.14` |
+| `CI_TEST_OS_MATRIX` | Operating systems used for tests with that Python version | `["ubuntu-latest", "macos-latest", "windows-latest"]` |
 | `CI_TEST_COMMAND` | Command used to run your tests | Default: `uv run pytest $(TESTS_PATH)` |
 | `CI_DOCKER_ENTRYPOINT` | Command that starts the app in its Docker image | Default: `python -m $(PYTHON_MAIN_PACKAGE)` |
 
-Keep the Python versions here inside the range declared by `requires-python` in `pyproject.toml`. If your project uses a different test tool, set `CI_TEST_COMMAND` to its command.
+Set `CI_PYTHON_VERSION` to one version that works with the project's dependencies. Keep `requires-python` in `pyproject.toml` consistent with that version. CI tests that same Python version on every OS in `CI_TEST_OS_MATRIX`. If your project uses a different test tool, set `CI_TEST_COMMAND` to its command.
 
 The example `pyproject.toml` uses the standard Python project format and Hatchling to build the package files. Most projects can keep this setup and change the package details and dependencies. If you choose another build tool, declare it in `pyproject.toml`.
 

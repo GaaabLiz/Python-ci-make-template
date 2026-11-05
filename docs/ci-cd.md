@@ -8,7 +8,7 @@ The `ci.yml` workflow runs for pull requests, branch pushes, and manual CI runs.
 
 1. Reads and checks the CI settings in `project.mk`.
 2. Checks workflow files and Python code style.
-3. Runs tests for each Python version and operating system listed in `project.mk`.
+3. Runs tests with the one Python version in `CI_PYTHON_VERSION` on each operating system listed in `project.mk`.
 4. Builds a wheel and source archive, installs each in a clean environment, and checks that your package can be imported.
 
 Tests are always required. If you use a test runner other than pytest, set `CI_TEST_COMMAND` in `project.mk`.
@@ -25,7 +25,7 @@ The release starts as a draft while checks and builds run. Optional publishers a
 
 Set these values in `project.mk`:
 
-- `CI_PYTHON_VERSION`, `CI_PYTHON_VERSIONS`, and `CI_TEST_OS_MATRIX`: what Python versions and operating systems to use
+- `CI_PYTHON_VERSION` and `CI_TEST_OS_MATRIX`: the one Python version and the operating systems to use
 - `CI_TEST_COMMAND`: how to run your tests
 - `CI_QUALITY_TARGETS`: which code-quality checks to run
 - `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS`: which app builds to run
@@ -33,7 +33,7 @@ Set these values in `project.mk`:
 - `RELEASE_CHANGELOG_TARGET_BRANCH`: the branch used for the generated changelog pull request
 - `CI_ENABLE_..._PUBLISH`: optional publication jobs; see each publisher's guide
 
-Keep the Python test versions inside the range in `pyproject.toml`. The template example uses Python 3.11 through 3.14.
+Set `CI_PYTHON_VERSION` to the project's chosen Python major and minor version. CI uses that same version for tests, quality checks, and builds. Keep `requires-python` in `pyproject.toml` consistent with that choice; the example is restricted to Python 3.14.
 
 ## Check settings before pushing
 
