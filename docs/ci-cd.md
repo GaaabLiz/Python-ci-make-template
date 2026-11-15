@@ -2,26 +2,40 @@
 
 GitHub Actions runs the checks and release steps for you. The workflow files call the same Make targets that you can run on your own computer.
 
-See the [editable CI and release diagrams](ci-workflows.drawio) for the complete job flow, including the parallel release branches and optional publishers.
+See the [editable CI, release, and template setup diagrams](ci-workflows.drawio) for the workflow triggers, jobs, dependencies, parallel release branches, and optional publishers.
+
+## When someone creates a repository from this template
+
+GitHub copies all files from the template's default branch. On the new repository's initial push to `main`, `template-context-cleanup.yml` removes `AGENTS.md`, `AI_CONTEXT.md`, `CLAUDE.md`, `GEMINI.md`, `.aider.conf.yml`, `.windsurfrules`, `.github/copilot-instructions.md`, `.clinerules/project-context.md`, `.cursor/rules/project.mdc`, and their README link. It then commits the cleanup and deletes its own workflow. GitHub has no dedicated Actions event for template instantiation, so the workflow listens to `push` on `main`; its job condition limits the cleanup to a newly created branch and skips this source repository and other templates. Regular pushes to `main` can show a skipped workflow run while the cleanup workflow remains in the source template. It needs Actions enabled and permission for `GITHUB_TOKEN` to write repository contents; repository rules that block that write can prevent the cleanup commit.
 
 ## What happens on a change
 
-The `ci.yml` workflow runs for pull requests, branch pushes, and manual CI runs. It:
+The `ci.yml` workflow runs for:
 
-1. Reads and checks the CI settings in `project.mk`.
-2. Checks workflow files and Python code style.
-3. Runs tests with the one Python version in `CI_PYTHON_VERSION` on each operating system listed in `project.mk`.
-4. Builds a wheel and source archive, installs each in a clean environment, and checks that your package can be imported.
+- Pushes to any branch
+- Pull requests when opened, synchronized, or reopened
+- Merge queue checks (`merge_group`)
+- Manual runs (`workflow_dispatch`)
+- Calls from another workflow (`workflow_call`); the release workflow uses this to validate a tagged commit
+
+Its jobs run in this order:
+
+1. `workflow-lint` checks every workflow file with actionlint. It runs independently.
+2. `ci-config` validates the CI settings in `project.mk` and exports the Python version, test OS matrix, uv version, and release-notes path.
+3. `quality` and `tests` start after `ci-config` and run in parallel. Quality checks run on Ubuntu. Tests use the configured Python version on each OS in `CI_TEST_OS_MATRIX`.
+4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs it builds the wheel and source archive; on a version tag it also verifies the tag version, generates release notes, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact.
 
 Tests are always required. If you use a test runner other than pytest, set `CI_TEST_COMMAND` in `project.mk`.
 
 ## What happens on a release
 
-The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. The version must match the one in `pyproject.toml`, and the tagged commit must already be part of the branch named by `RELEASE_TARGET_BRANCH`.
+The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. Its `ci-config` job validates release settings and checks that the tagged commit is already part of the branch named by `RELEASE_TARGET_BRANCH`. The reusable CI gate also checks that the tag version matches the one in `pyproject.toml`.
 
-The workflow runs CI, creates `ReleaseNotes.md` from the changes since the previous tag, and builds any app files enabled in `project.mk`. The notes become the body and a downloadable file on the GitHub Release. The same notes are included in the PyPI package description for that version. They are not committed to the repository. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
+After the reusable CI gate succeeds, `release-notes-and-draft` creates a draft GitHub Release while the optional API-docs PR, enabled native app builds, and PyPI publication run as independent branches. `release-ready` requires valid configuration, a successful CI gate, the draft release, and every enabled native build; disabled native builds are accepted as skipped. The final GitHub Release waits for `release-ready` and for PyPI when PyPI publishing is enabled. Optional Docker Hub, Chocolatey, Homebrew, and WinGet publishers run after the GitHub Release is published; Homebrew also requires PyPI publication to succeed.
 
-The release starts as a draft while checks and builds run. Optional publishers are disabled until you configure them. Homebrew waits for the PyPI job because its formula installs the Python package from PyPI.
+The notes become the draft release body and a downloadable file on the GitHub Release. The same notes are included in the PyPI package description for that version. They are not committed to the repository. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
+
+All optional publishers are disabled until you configure them. Homebrew waits for the PyPI job because its formula installs the Python package from PyPI.
 
 ## Settings to review
 

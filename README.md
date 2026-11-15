@@ -2,7 +2,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/ci.yml?branch=main&label=CI)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/actions/workflow/status/GaaabLiz/Python-ci-make-template/release.yml?label=Release)](https://github.com/GaaabLiz/Python-ci-make-template/actions/workflows/release.yml)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](docs/getting-started.md)
+[![Python](https://img.shields.io/badge/python-3.14-blue)](docs/getting-started.md)
 
 A starter template for Python projects. It uses `make` for common commands, `uv` for Python packages, and GitHub Actions for checks and releases.
 
@@ -12,7 +12,7 @@ Release notes are published with the GitHub and PyPI releases; they are not comm
 
 ## Start here
 
-1. Create a repository from this template.
+1. Create a repository from this template. A one-time workflow removes the template-specific AI-agent context files and commits that cleanup.
 2. Set your package name, version, description, and dependencies in `pyproject.toml`.
 3. Set your project-specific options in `project.mk`.
 4. Install the tools and run the first checks by following [Getting Started](docs/getting-started.md).
@@ -46,11 +46,12 @@ make build
 
 ## Guides
 
+- [AI project context](AI_CONTEXT.md) and [AI working rules](AGENTS.md): architecture, CI flow, and maintenance requirements
 - [Getting Started](docs/getting-started.md): install tools and run the project for the first time
 - [Configuration](docs/configuration.md): choose what to change in `project.mk`
 - [Project Structure](docs/project-structure.md): understand the main files and folders
 - [Development Workflow](docs/development.md): everyday commands
-- [CI and release diagrams](docs/ci-workflows.drawio): editable overview of the workflow jobs and dependencies
+- [CI, release, and template setup diagrams](docs/ci-workflows.drawio): editable overview of the workflow jobs and dependencies
 - [Build and Packaging](docs/build-and-packaging.md): Python packages, apps, icons, and Windows installers
 - [CI/CD Automation](docs/ci-cd.md): automatic checks and releases
 - [Release Automation](docs/release-automation.md): create and publish a version

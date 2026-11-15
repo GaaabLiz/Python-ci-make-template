@@ -1,0 +1,6 @@
+---
+description: Project architecture and maintenance rules for this Python CI template
+alwaysApply: true
+---
+
+Read the repository root `AGENTS.md` and `AI_CONTEXT.md` before making changes. Follow their rules. Any GitHub Actions behavior change (CI, release, or template setup) must update both `docs/ci-cd.md` and `docs/ci-workflows.drawio` in the same change; inspect all affected workflow files and keep triggers, dependencies, gates, conditions, artifacts, and publishers accurate.

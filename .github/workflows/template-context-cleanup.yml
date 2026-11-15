@@ -1,0 +1,73 @@
+name: Remove template AI context
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Remove template-specific AI instructions
+    if: >-
+      github.event.created == true &&
+      github.event.repository.is_template == false &&
+      github.repository != 'GaaabLiz/Python-ci-make-template'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out generated repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Remove AI agent context files and this workflow
+        run: |
+          set -euo pipefail
+
+          rm -f \
+            AGENTS.md \
+            AI_CONTEXT.md \
+            CLAUDE.md \
+            GEMINI.md \
+            .aider.conf.yml \
+            .windsurfrules \
+            .github/copilot-instructions.md \
+            .clinerules/project-context.md \
+            .cursor/rules/project.mdc \
+            .github/workflows/template-context-cleanup.yml
+          rmdir .clinerules .cursor/rules .cursor 2>/dev/null || true
+
+      - name: Remove AI context link from README
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          readme = Path("README.md")
+          lines = readme.read_text(encoding="utf-8").splitlines()
+          lines = [line for line in lines if not line.startswith("- [AI project context]")]
+          readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Stage cleanup changes
+        id: changes
+        run: |
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit cleanup
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: remove template AI instructions"
+
+      - name: Push cleanup commit
+        if: steps.changes.outputs.has_changes == 'true'
+        run: git push origin "HEAD:${GITHUB_REF}"
