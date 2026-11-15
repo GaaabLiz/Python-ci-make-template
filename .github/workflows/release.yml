@@ -252,7 +252,7 @@ jobs:
     name: Publish verified package to PyPI
     needs:
       - ci-config
-      - release-ready
+      - ci-gate
     if: needs.ci-config.outputs.enable_pypi_publish == '1'
     runs-on: ubuntu-latest
     environment: ${{ needs.ci-config.outputs.pypi_environment }}
