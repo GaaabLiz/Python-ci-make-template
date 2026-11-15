@@ -10,6 +10,8 @@ A release is a published version of your project. This template starts a release
 4. Push your changes to the branch named by `RELEASE_CHANGELOG_TARGET_BRANCH` (usually `main`).
 5. Follow the setup guide for each publisher you want to enable. All publishers start disabled.
 
+Before the first release, allow the workflow to create the generated changelog pull request. In the repository, open **Settings → Actions → General → Workflow permissions** and enable **Allow GitHub Actions to create and approve pull requests**. The workflow requests `pull-requests: write`, but GitHub also enforces this repository setting for `GITHUB_TOKEN`. If your organization policy does not allow this setting, add a `RELEASE_AUTOMATION_TOKEN` repository secret that can write repository contents and create pull requests. Use this token as well if the generated pull request should trigger normal CI workflows.
+
 The release tag must point to a commit already included in the target branch. The workflow also checks that the tag version matches `pyproject.toml`.
 
 ## Create and push a version tag
@@ -32,7 +34,7 @@ GitHub Actions runs CI, creates a draft release, builds the configured app files
 
 The wheel and source archive are built and checked once, then reused. WinGet uses the same Windows installer artifact that is attached to the GitHub Release when it calculates the installer hash. macOS graphical apps are zipped before upload.
 
-The workflow opens or updates a pull request with generated changelog files instead of writing them directly to your protected branch. The tag must already be on the target branch. Set `RELEASE_AUTOMATION_TOKEN` in GitHub only if the generated-files pull request should start normal CI checks.
+The workflow opens or updates a pull request with generated changelog files instead of writing them directly to your protected branch. The tag must already be on the target branch. See the permission requirement above; a `RELEASE_AUTOMATION_TOKEN` is also needed if the generated-files pull request should start normal CI checks.
 
 ## Changelog and API documentation
 
