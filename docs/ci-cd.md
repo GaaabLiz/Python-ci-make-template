@@ -17,9 +17,9 @@ Tests are always required. If you use a test runner other than pytest, set `CI_T
 
 ## What happens on a release
 
-The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. The version must match the one in `pyproject.toml`, and the tagged commit must already be part of the branch named by `RELEASE_CHANGELOG_TARGET_BRANCH`.
+The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. The version must match the one in `pyproject.toml`, and the tagged commit must already be part of the branch named by `RELEASE_TARGET_BRANCH`.
 
-The workflow runs CI, prepares changelog and release notes, and builds any app files enabled in `project.mk`. It then publishes the GitHub Release and runs the optional publishers you enabled. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
+The workflow runs CI, creates `ReleaseNotes.md` from the changes since the previous tag, and builds any app files enabled in `project.mk`. The notes become the body and a downloadable file on the GitHub Release. The same notes are included in the PyPI package description for that version. They are not committed to the repository. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
 
 The release starts as a draft while checks and builds run. Optional publishers are disabled until you configure them. Homebrew waits for the PyPI job because its formula installs the Python package from PyPI.
 
@@ -32,7 +32,7 @@ Set these values in `project.mk`:
 - `CI_QUALITY_TARGETS`: which code-quality checks to run
 - `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS`: which app builds to run
 - `RELEASE_ARTIFACTS`: which app files and installers to attach to the GitHub Release
-- `RELEASE_CHANGELOG_TARGET_BRANCH`: the branch used for the generated changelog pull request
+- `RELEASE_TARGET_BRANCH`: the branch that release tags must belong to; optional API documentation PRs target this branch
 - `CI_ENABLE_..._PUBLISH`: optional publication jobs; see each publisher's guide
 
 Set `CI_PYTHON_VERSION` to the project's chosen Python major and minor version. CI uses that same version for tests, quality checks, and builds. Keep `requires-python` in `pyproject.toml` consistent with that choice; the example is restricted to Python 3.14.
@@ -55,4 +55,4 @@ make qa
 
 If you change dependencies, update `uv.lock` and commit it. The CI workflow uses the lock file so it installs the versions selected by the project.
 
-When a release is made, the workflow opens or updates a pull request for generated changelog files. Set the optional `RELEASE_AUTOMATION_TOKEN` secret if that pull request should start the normal CI checks. API documentation is included only when `CI_ENABLE_RELEASE_DOCS=1`.
+Release notes are published with each release and are not written back to the source branch. API documentation is included in a separate generated-files pull request only when `CI_ENABLE_RELEASE_DOCS=1`; configure the repository's Actions pull-request permission or `RELEASE_AUTOMATION_TOKEN` for that optional feature.

@@ -6,9 +6,9 @@
 
 A starter template for Python projects. It uses `make` for common commands, `uv` for Python packages, and GitHub Actions for checks and releases.
 
-## Important: GitHub Actions permission for release PRs
+## Optional release documentation PRs
 
-The release workflow opens or updates a pull request with generated changelog files. GitHub's repository settings must allow `GITHUB_TOKEN` to create pull requests; the `pull-requests: write` permission in the workflow file alone is not enough. After creating a repository from this template, enable **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests** before the first release. If that setting is unavailable under your organization policy, configure a `RELEASE_AUTOMATION_TOKEN` repository secret with permission to write repository contents and create pull requests.
+Release notes are published with the GitHub and PyPI releases; they are not committed back to the repository. If you set `CI_ENABLE_RELEASE_DOCS=1`, the workflow opens a pull request for generated API documentation. GitHub's repository settings must allow `GITHUB_TOKEN` to create pull requests; the `pull-requests: write` permission in the workflow file alone is not enough. If that setting is unavailable under your organization policy, configure a `RELEASE_AUTOMATION_TOKEN` repository secret with permission to write repository contents and create pull requests.
 
 ## Start here
 

@@ -7,10 +7,10 @@ A release is a published version of your project. This template starts a release
 1. Set the version in `pyproject.toml`.
 2. Set the release options in `project.mk`.
 3. Run `make qa` and `make build` locally.
-4. Push your changes to the branch named by `RELEASE_CHANGELOG_TARGET_BRANCH` (usually `main`).
+4. Push your changes to the branch named by `RELEASE_TARGET_BRANCH` (usually `main`).
 5. Follow the setup guide for each publisher you want to enable. All publishers start disabled.
 
-Before the first release, allow the workflow to create the generated changelog pull request. In the repository, open **Settings → Actions → General → Workflow permissions** and enable **Allow GitHub Actions to create and approve pull requests**. The workflow requests `pull-requests: write`, but GitHub also enforces this repository setting for `GITHUB_TOKEN`. If your organization policy does not allow this setting, add a `RELEASE_AUTOMATION_TOKEN` repository secret that can write repository contents and create pull requests. Use this token as well if the generated pull request should trigger normal CI workflows.
+Release notes do not require a pull request. If you enable `CI_ENABLE_RELEASE_DOCS=1`, the workflow opens a pull request for generated API documentation. For that optional feature, allow pull requests from GitHub Actions in **Settings → Actions → General → Workflow permissions**. If your organization policy does not allow this setting, add a `RELEASE_AUTOMATION_TOKEN` repository secret that can write repository contents and create pull requests. Use this token if the documentation PR should trigger normal CI workflows.
 
 The release tag must point to a commit already included in the target branch. The workflow also checks that the tag version matches `pyproject.toml`.
 
@@ -30,17 +30,17 @@ If you prefer to create a release manually, update the version in `pyproject.tom
 
 ## What GitHub does
 
-GitHub Actions runs CI, creates a draft release, builds the configured app files, and prepares changelog and release notes. When all required jobs pass, it publishes the GitHub Release and runs any enabled publishers.
+GitHub Actions runs CI, creates per-version release notes, creates a draft GitHub Release, builds the configured app files, and runs any enabled publishers. When all required jobs pass, it publishes the GitHub Release.
 
 The wheel and source archive are built and checked once, then reused. WinGet uses the same Windows installer artifact that is attached to the GitHub Release when it calculates the installer hash. macOS graphical apps are zipped before upload.
 
-The workflow opens or updates a pull request with generated changelog files instead of writing them directly to your protected branch. The tag must already be on the target branch. See the permission requirement above; a `RELEASE_AUTOMATION_TOKEN` is also needed if the generated-files pull request should start normal CI checks.
+The workflow does not open a changelog pull request or commit the release notes to the repository. `ReleaseNotes.md` is used as the GitHub Release body and attached as a downloadable release file. CI also appends those notes to the package description in the wheel and source archive uploaded to PyPI, so each PyPI version shows its own notes. The tag must already be on `RELEASE_TARGET_BRANCH`.
 
-## Changelog and API documentation
+## Release notes and API documentation
 
-`cliff.toml` controls generated changelog and release notes. The relevant output paths are set in `project.mk`.
+`cliff.toml` controls the content and grouping of `ReleaseNotes.md`. The generated file is temporary in CI; its path is set by `CI_RELEASE_NOTES_FILE` in `project.mk` and it is not committed to the source branch.
 
-API documentation is optional. Set `CI_ENABLE_RELEASE_DOCS=1` in `project.mk` to generate it during a release. The generated pages go in `docs/api/`; the guides you wrote in `docs/` are kept.
+API documentation is optional. Set `CI_ENABLE_RELEASE_DOCS=1` in `project.mk` to generate it during a release. The generated pages go in `docs/api/` and are proposed in a separate pull request; the guides you wrote in `docs/` are kept.
 
 ## If a release build fails
 
