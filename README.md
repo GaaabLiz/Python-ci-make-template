@@ -50,6 +50,7 @@ make build
 - [Configuration](docs/configuration.md): choose what to change in `project.mk`
 - [Project Structure](docs/project-structure.md): understand the main files and folders
 - [Development Workflow](docs/development.md): everyday commands
+- [CI and release diagrams](docs/ci-workflows.drawio): editable overview of the workflow jobs and dependencies
 - [Build and Packaging](docs/build-and-packaging.md): Python packages, apps, icons, and Windows installers
 - [CI/CD Automation](docs/ci-cd.md): automatic checks and releases
 - [Release Automation](docs/release-automation.md): create and publish a version

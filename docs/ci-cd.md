@@ -2,6 +2,8 @@
 
 GitHub Actions runs the checks and release steps for you. The workflow files call the same Make targets that you can run on your own computer.
 
+See the [editable CI and release diagrams](ci-workflows.drawio) for the complete job flow, including the parallel release branches and optional publishers.
+
 ## What happens on a change
 
 The `ci.yml` workflow runs for pull requests, branch pushes, and manual CI runs. It:
