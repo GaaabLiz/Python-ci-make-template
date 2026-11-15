@@ -39,6 +39,7 @@ jobs:
       python_version: ${{ steps.config.outputs.python_version }}
       test_os_matrix: ${{ steps.config.outputs.test_os_matrix }}
       uv_version: ${{ steps.config.outputs.uv_version }}
+      release_notes_file: ${{ steps.config.outputs.release_notes_file }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -123,6 +124,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Install uv
@@ -139,7 +141,20 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: make ci-verify-release-version
 
+      - name: Install git-cliff for release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: make ci-install-git-cliff
+
+      - name: Generate per-release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: make ci-generate-release-notes
+
       - name: Build wheel and source distribution
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: make ci-build-release-package
+
+      - name: Build wheel and source distribution
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: make build
 
       - name: Smoke-test distributions
@@ -153,4 +168,12 @@ jobs:
         with:
           name: python-package-dist
           path: dist/*
+          if-no-files-found: error
+
+      - name: Upload per-release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes
+          path: ${{ needs.ci-config.outputs.release_notes_file }}
           if-no-files-found: error

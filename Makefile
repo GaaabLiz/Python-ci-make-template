@@ -665,7 +665,7 @@ ci-export-config:
 	@printf 'python_version=%s\n' '$(CI_PYTHON_VERSION)' >> "$$GITHUB_OUTPUT"
 	@printf 'test_os_matrix=%s\n' '$(CI_TEST_OS_MATRIX)' >> "$$GITHUB_OUTPUT"
 	@printf 'uv_version=%s\n' '$(CI_UV_VERSION)' >> "$$GITHUB_OUTPUT"
-	@echo "release_branch=$(RELEASE_CHANGELOG_TARGET_BRANCH)" >> "$$GITHUB_OUTPUT"
+	@echo "release_target_branch=$(RELEASE_TARGET_BRANCH)" >> "$$GITHUB_OUTPUT"
 	@echo "windows_installer_enabled=$(ENABLE_WINDOWS_INSTALLER)" >> "$$GITHUB_OUTPUT"
 	@echo "build_linux=$(CI_BUILD_LINUX)" >> "$$GITHUB_OUTPUT"
 	@echo "build_macos=$(CI_BUILD_MACOS)" >> "$$GITHUB_OUTPUT"
@@ -690,8 +690,8 @@ ci-export-config:
 	@echo "docker_build_context=$(CI_DOCKER_BUILD_CONTEXT)" >> "$$GITHUB_OUTPUT"
 	@echo "docker_push_latest=$(CI_DOCKER_PUSH_LATEST)" >> "$$GITHUB_OUTPUT"
 	@echo "enable_release_docs=$(CI_ENABLE_RELEASE_DOCS)" >> "$$GITHUB_OUTPUT"
-	@echo "changelog_file=$(CI_CHANGELOG_FILE)" >> "$$GITHUB_OUTPUT"
 	@echo "release_notes_file=$(CI_RELEASE_NOTES_FILE)" >> "$$GITHUB_OUTPUT"
+	@echo "release_notes_filename=$(notdir $(CI_RELEASE_NOTES_FILE))" >> "$$GITHUB_OUTPUT"
 	@echo "git_cliff_config=$(CI_GIT_CLIFF_CONFIG)" >> "$$GITHUB_OUTPUT"
 	@{ \
 		echo "release_artifacts<<EOF"; \
@@ -705,17 +705,27 @@ ci-install-git-cliff:
 	@echo "[ci-install-git-cliff] Installing git-cliff via uv tool"
 	uv tool install git-cliff==$(CI_GIT_CLIFF_VERSION)
 
-## ci-generate-changelog  – Generate the full changelog file configured in CI_CHANGELOG_FILE
-.PHONY: ci-generate-changelog
-ci-generate-changelog:
-	@echo "[ci-generate-changelog] Writing $(CI_CHANGELOG_FILE) using $(CI_GIT_CLIFF_CONFIG)"
-	uvx --from git-cliff==$(CI_GIT_CLIFF_VERSION) git-cliff --config $(CI_GIT_CLIFF_CONFIG) --output $(CI_CHANGELOG_FILE)
-
 ## ci-generate-release-notes – Generate latest release notes into CI_RELEASE_NOTES_FILE
 .PHONY: ci-generate-release-notes
 ci-generate-release-notes:
 	@echo "[ci-generate-release-notes] Writing $(CI_RELEASE_NOTES_FILE)"
 	uvx --from git-cliff==$(CI_GIT_CLIFF_VERSION) git-cliff --config $(CI_GIT_CLIFF_CONFIG) --latest --strip header > $(CI_RELEASE_NOTES_FILE)
+
+## ci-build-release-package – Build distributions with this release's notes in PyPI metadata
+.PHONY: ci-build-release-package
+ci-build-release-package:
+	@set -eu; \
+	if [ ! -s "$(CI_RELEASE_NOTES_FILE)" ]; then \
+		echo "Error: $(CI_RELEASE_NOTES_FILE) is missing or empty."; \
+		exit 1; \
+	fi; \
+	README_BACKUP=$$(mktemp); \
+	cp README.md "$$README_BACKUP"; \
+	restore_readme() { cp "$$README_BACKUP" README.md; rm -f "$$README_BACKUP"; }; \
+	trap restore_readme EXIT; \
+	printf '\n\n## Release notes\n\n' >> README.md; \
+	cat "$(CI_RELEASE_NOTES_FILE)" >> README.md; \
+	$(MAKE) --no-print-directory build
 
 ## ci-generate-docs       – Generate project documentation for release automation
 .PHONY: ci-generate-docs
@@ -723,14 +733,14 @@ ci-generate-docs:
 	@echo "[ci-generate-docs] Generating docs/api/ for $(PYTHON_MAIN_PACKAGE)"
 	$(MAKE) --no-print-directory docs
 
-## ci-prepare-release-update-branch – Start release automation from the tagged commit
-.PHONY: ci-prepare-release-update-branch
-ci-prepare-release-update-branch:
+## ci-prepare-release-docs-branch – Start optional docs publication from the tagged commit
+.PHONY: ci-prepare-release-docs-branch
+ci-prepare-release-docs-branch:
 	@set -eu; \
 	if [ -z "$${GITHUB_REF_NAME:-}" ] || [ -z "$${GITHUB_SHA:-}" ]; then \
 		echo "Error: release tag context is missing."; exit 1; \
 	fi; \
-	TARGET_BRANCH="$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
+	TARGET_BRANCH="$(RELEASE_TARGET_BRANCH)"; \
 	PR_BRANCH="automation/release-updates-$$GITHUB_REF_NAME"; \
 	git fetch origin "refs/heads/$$TARGET_BRANCH:refs/remotes/origin/$$TARGET_BRANCH"; \
 	if ! git merge-base --is-ancestor "$$GITHUB_SHA" "origin/$$TARGET_BRANCH"; then \
@@ -739,9 +749,9 @@ ci-prepare-release-update-branch:
 	fi; \
 	git switch --create "$$PR_BRANCH" "$$GITHUB_SHA"
 
-## ci-open-release-updates-pr – Open/update a PR for generated release files
-.PHONY: ci-open-release-updates-pr
-ci-open-release-updates-pr:
+## ci-open-release-docs-pr – Open/update a PR for generated API documentation
+.PHONY: ci-open-release-docs-pr
+ci-open-release-docs-pr:
 	@set -eu; \
 	if [ -z "$${GITHUB_REF_NAME:-}" ] || [ -z "$${GITHUB_SHA:-}" ]; then \
 		echo "Error: release tag context is missing."; exit 1; \
@@ -749,19 +759,21 @@ ci-open-release-updates-pr:
 	if [ -z "$${GH_TOKEN:-}" ]; then \
 		echo "Error: GH_TOKEN is not set."; exit 1; \
 	fi; \
-	TARGET_BRANCH="$(RELEASE_CHANGELOG_TARGET_BRANCH)"; \
+	TARGET_BRANCH="$(RELEASE_TARGET_BRANCH)"; \
 	PR_BRANCH="automation/release-updates-$$GITHUB_REF_NAME"; \
 	if [ "$$(git branch --show-current)" != "$$PR_BRANCH" ]; then \
 		echo "Error: expected to run on branch $$PR_BRANCH."; exit 1; \
 	fi; \
 	git config user.name "github-actions[bot]"; \
 	git config user.email "github-actions[bot]@users.noreply.github.com"; \
-	git add -- "$(CI_CHANGELOG_FILE)"; \
-	if [ "$(CI_ENABLE_RELEASE_DOCS)" = "1" ]; then git add -A -- docs/api; fi; \
-	if git diff --cached --quiet; then \
-		echo "No generated release file changes to publish."; exit 0; \
+	if [ "$(CI_ENABLE_RELEASE_DOCS)" != "1" ]; then \
+		echo "Error: CI_ENABLE_RELEASE_DOCS must be 1 to open a docs PR."; exit 1; \
 	fi; \
-	git commit -m "chore: update generated release files for $$GITHUB_REF_NAME"; \
+	git add -A -- docs/api; \
+	if git diff --cached --quiet; then \
+		echo "No generated API documentation changes to publish."; exit 0; \
+	fi; \
+	git commit -m "docs: update generated API docs for $$GITHUB_REF_NAME"; \
 	REMOTE_REF=$$(git ls-remote origin "refs/heads/$$PR_BRANCH"); \
 	REMOTE_SHA=$${REMOTE_REF%%[[:space:]]*}; \
 	if [ -n "$$REMOTE_SHA" ]; then \
@@ -772,13 +784,13 @@ ci-open-release-updates-pr:
 	PR_NUMBER=$$(GH_TOKEN="$$GH_TOKEN" gh pr list --repo "$$GITHUB_REPOSITORY" --head "$$PR_BRANCH" --state open --json number --jq '.[0].number // empty'); \
 	if [ -n "$$PR_NUMBER" ]; then \
 		GH_TOKEN="$$GH_TOKEN" gh pr edit "$$PR_NUMBER" --repo "$$GITHUB_REPOSITORY" \
-			--title "chore: update generated files for $$GITHUB_REF_NAME" \
-			--body "Generated changelog and optional API documentation for release $$GITHUB_REF_NAME."; \
+			--title "docs: update generated API documentation for $$GITHUB_REF_NAME" \
+			--body "Generated API documentation for release $$GITHUB_REF_NAME."; \
 	else \
 		GH_TOKEN="$$GH_TOKEN" gh pr create --repo "$$GITHUB_REPOSITORY" \
 			--base "$$TARGET_BRANCH" --head "$$PR_BRANCH" \
-			--title "chore: update generated files for $$GITHUB_REF_NAME" \
-			--body "Generated changelog and optional API documentation for release $$GITHUB_REF_NAME."; \
+			--title "docs: update generated API documentation for $$GITHUB_REF_NAME" \
+			--body "Generated API documentation for release $$GITHUB_REF_NAME."; \
 	fi
 
 ## ci-build-release-assets – Build release assets for the current runner OS with verbose diagnostics
@@ -891,6 +903,25 @@ ci-verify-release-version:
 		exit 1; \
 	fi; \
 	echo "Verified release version $$VERSION."
+
+## ci-verify-release-target-branch – Require the release tag to be on RELEASE_TARGET_BRANCH
+.PHONY: ci-verify-release-target-branch
+ci-verify-release-target-branch:
+	@set -eu; \
+	if [ -z "$${GITHUB_SHA:-}" ]; then \
+		echo "Error: release commit SHA is missing."; \
+		exit 1; \
+	fi; \
+	TARGET_BRANCH="$(RELEASE_TARGET_BRANCH)"; \
+	if ! git show-ref --verify --quiet "refs/remotes/origin/$$TARGET_BRANCH"; then \
+		echo "Error: target branch $$TARGET_BRANCH was not fetched."; \
+		exit 1; \
+	fi; \
+	if ! git merge-base --is-ancestor "$$GITHUB_SHA" "origin/$$TARGET_BRANCH"; then \
+		echo "Error: release commit $$GITHUB_SHA is not contained in origin/$$TARGET_BRANCH."; \
+		exit 1; \
+	fi; \
+	echo "Verified release commit $$GITHUB_SHA is on $$TARGET_BRANCH."
 
 ## ci-publish-pypi        – Publish package artifacts to PyPI (requires trusted publishing)
 .PHONY: ci-publish-pypi
@@ -1007,10 +1038,10 @@ ci-publish-chocolatey:
 	echo "Publishing $$PACKAGE_FILE to $(CI_CHOCOLATEY_SOURCE_URL)"; \
 	choco push "$$PACKAGE_FILE" --source "$(CI_CHOCOLATEY_SOURCE_URL)" --api-key "$$CHOCOLATEY_API_KEY" --yes --limit-output
 
-## ci-release-branch      – Print RELEASE_CHANGELOG_TARGET_BRANCH
+## ci-release-branch      – Print RELEASE_TARGET_BRANCH
 .PHONY: ci-release-branch
 ci-release-branch:
-	@echo $(RELEASE_CHANGELOG_TARGET_BRANCH)
+	@echo $(RELEASE_TARGET_BRANCH)
 
 ## ci-windows-installer   – Print ENABLE_WINDOWS_INSTALLER (1 or 0)
 .PHONY: ci-windows-installer
