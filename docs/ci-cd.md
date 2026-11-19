@@ -23,13 +23,15 @@ Its jobs run in this order:
 1. `workflow-lint` checks every workflow file with actionlint. It runs independently.
 2. `ci-config` validates the CI settings in `project.mk` and exports the Python version, test OS matrix, uv version, and release-notes path.
 3. `quality` and `tests` start after `ci-config` and run in parallel. Quality checks run on Ubuntu. Tests use the configured Python version on each OS in `CI_TEST_OS_MATRIX`.
-4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs it builds the wheel and source archive; on a version tag it also verifies the tag version, generates release notes, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact.
+4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs `make build` serially cleans artifacts, generates the project metadata module, and calls `build-uv`; on a version tag it verifies the tag version, generates release notes, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact. `build-uv` remains available as a standalone target.
 
 Tests are always required. If you use a test runner other than pytest, set `CI_TEST_COMMAND` in `project.mk`.
 
 ## What happens on a release
 
 The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. Its `ci-config` job validates release settings and checks that the tagged commit is already part of the branch named by `RELEASE_TARGET_BRANCH`. The reusable CI gate also checks that the tag version matches the one in `pyproject.toml`.
+
+The local `release-*-tag` Make targets run the version bump and metadata generation in order, commit and push the bump to the release branch, and only then tag that pushed commit. A failed bump, generation, commit, rebase, or branch push stops the sequence before tag creation.
 
 After the reusable CI gate succeeds, `release-notes-and-draft` creates a draft GitHub Release while the optional API-docs PR, enabled native app builds, and PyPI publication run as independent branches. `release-ready` requires valid configuration, a successful CI gate, the draft release, and every enabled native build; disabled native builds are accepted as skipped. The final GitHub Release waits for `release-ready` and for PyPI when PyPI publishing is enabled. Optional Docker Hub, Chocolatey, Homebrew, and WinGet publishers run after the GitHub Release is published; Homebrew also requires PyPI publication to succeed.
 

@@ -86,6 +86,8 @@ make ci-log-config   # show active CI/release settings
 make ci-validate-config
 ```
 
+High-level build targets run cleanup, `gen-project-module`, and `build-uv` sequentially, including under parallel Make. `build-uv` remains a standalone package build. Release targets sequence the version bump, metadata generation, commit, branch rebase/push, and (for `release-*-tag`) tag creation/push; the tag points to the bump commit only after that commit is published on the release branch. A failed step stops the sequence.
+
 For optional features, consult `docs/build-and-packaging.md`, `docs/publishing-*.md`, and `docs/qt-support.md` before changing their configuration.
 
 ## Documentation update contract

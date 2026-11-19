@@ -16,7 +16,7 @@ The release tag must point to a commit already included in the target branch. Th
 
 ## Create and push a version tag
 
-The release Make targets update the version in `pyproject.toml`, update the installer version if configured, commit and push the version change, then create and push a Git tag. They send changes to GitHub automatically.
+The release Make targets run the version bump and metadata generation in order, update the installer version if configured, commit and push the version change to the release branch, and then create and push a Git tag that points to that pushed commit. Each step stops if the previous step fails, so a failed commit or branch push cannot leave a release tag behind. They send changes to GitHub automatically.
 
 Before running one, make sure your work is committed, your working tree is clean, and you are on the release branch (usually `main`) with the latest changes. For a patch release, run:
 

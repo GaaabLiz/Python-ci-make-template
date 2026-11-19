@@ -290,7 +290,10 @@ qa: $(CI_QUALITY_TARGETS) test
 
 ## build                – Full build: clean → gen-project-module → uv build
 .PHONY: build
-build: clean gen-project-module build-uv
+build:
+	$(MAKE) --no-print-directory clean
+	$(MAKE) --no-print-directory gen-project-module
+	$(MAKE) --no-print-directory build-uv
 	@echo "[build] Build completed for package $(PYTHON_MAIN_PACKAGE)"
 
 ## build-uv             – Build sdist and wheel with uv (no clean or generate step)
@@ -345,11 +348,19 @@ build-exe-onefile:
 
 ## build-app            – Full app build: clean → gen-project-module → uv build → build-exe
 .PHONY: build-app
-build-app: clean gen-project-module build-uv build-exe
+build-app:
+	$(MAKE) --no-print-directory clean
+	$(MAKE) --no-print-directory gen-project-module
+	$(MAKE) --no-print-directory build-uv
+	$(MAKE) --no-print-directory build-exe
 
 ## build-app-onefile    – Full app build using the --onefile PyInstaller mode
 .PHONY: build-app-onefile
-build-app-onefile: clean gen-project-module build-uv build-exe-onefile
+build-app-onefile:
+	$(MAKE) --no-print-directory clean
+	$(MAKE) --no-print-directory gen-project-module
+	$(MAKE) --no-print-directory build-uv
+	$(MAKE) --no-print-directory build-exe-onefile
 
 ## installer            – Run Inno Setup to produce the Windows installer (Windows only)
 .PHONY: installer
@@ -363,7 +374,9 @@ endif
 
 ## build-installer      – Full pipeline including the Windows installer step
 .PHONY: build-installer
-build-installer: build-app-onefile installer
+build-installer:
+	$(MAKE) --no-print-directory build-app-onefile
+	$(MAKE) --no-print-directory installer
 
 
 # ==============================================================================
@@ -494,7 +507,8 @@ bump-major:
 #    2. Commits all staged changes with a "bump: vX.Y.Z" message.
 #    3. Pull-rebases to incorporate remote changes, then pushes.
 define _release_impl
-	@VERSION=$$(uv version --short); \
+	@set -eu; \
+	VERSION=$$(uv version --short); \
 	echo "Releasing version $$VERSION …"; \
 	if [ -f "$(INNO_SETUP_FILE)" ]; then \
 		echo "  Updating Inno Setup version …"; \
@@ -507,48 +521,73 @@ define _release_impl
 	git push
 endef
 
+define _tag_impl
+	@set -eu; \
+	VERSION=$$(uv version --short); \
+	RELEASE_COMMIT=$$(git rev-parse HEAD); \
+	git tag "v$$VERSION" "$$RELEASE_COMMIT"; \
+	git push origin "refs/tags/v$$VERSION"
+endef
+
 ## release-patch-beta   – bump-patch-beta + gen-project-module + commit & push
 .PHONY: release-patch-beta
-release-patch-beta: bump-patch-beta gen-project-module
+
+release-patch-beta:
+	$(MAKE) --no-print-directory bump-patch-beta
+	$(MAKE) --no-print-directory gen-project-module
 	$(call _release_impl)
 
 ## release-patch        – bump-patch + gen-project-module + commit & push
 .PHONY: release-patch
-release-patch: bump-patch gen-project-module
+
+release-patch:
+	$(MAKE) --no-print-directory bump-patch
+	$(MAKE) --no-print-directory gen-project-module
 	$(call _release_impl)
 
 ## release-minor        – bump-minor + gen-project-module + commit & push
 .PHONY: release-minor
-release-minor: bump-minor gen-project-module
+
+release-minor:
+	$(MAKE) --no-print-directory bump-minor
+	$(MAKE) --no-print-directory gen-project-module
 	$(call _release_impl)
 
 ## release-major        – bump-major + gen-project-module + commit & push
 .PHONY: release-major
-release-major: bump-major gen-project-module
+
+release-major:
+	$(MAKE) --no-print-directory bump-major
+	$(MAKE) --no-print-directory gen-project-module
 	$(call _release_impl)
 
-## tag                  – Pull latest, create a v-prefixed git tag from uv version, and push
+## tag                  – Pull and publish the branch, then tag and push its current version
 .PHONY: tag
 tag:
-	git pull
-	git tag v$$(uv version --short)
-	git push origin v$$(uv version --short)
+	@set -eu; \
+	git pull --rebase; \
+	git push
+	$(call _tag_impl)
 
 ## release-patch-beta-tag – release-patch-beta + tag
 .PHONY: release-patch-beta-tag
-release-patch-beta-tag: release-patch-beta tag
+release-patch-beta-tag: release-patch-beta
+	$(call _tag_impl)
 
 ## release-patch-tag    – release-patch + tag
 .PHONY: release-patch-tag
-release-patch-tag: release-patch tag
+release-patch-tag: release-patch
+	$(call _tag_impl)
 
 ## release-minor-tag    – release-minor + tag
 .PHONY: release-minor-tag
-release-minor-tag: release-minor tag
+release-minor-tag: release-minor
+	$(call _tag_impl)
 
 ## release-major-tag    – release-major + tag
 .PHONY: release-major-tag
-release-major-tag: release-major tag
+release-major-tag: release-major
+	$(call _tag_impl)
 
 
 # ==============================================================================
