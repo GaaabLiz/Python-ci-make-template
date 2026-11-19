@@ -32,7 +32,7 @@ If you prefer to create a release manually, update the version in `pyproject.tom
 
 GitHub Actions runs CI, creates per-version release notes, creates a draft GitHub Release, builds the configured app files, and runs any enabled publishers. When all required jobs pass, it publishes the GitHub Release.
 
-The wheel and source archive are built and checked once, then reused. WinGet uses the same Windows installer artifact that is attached to the GitHub Release when it calculates the installer hash. macOS graphical apps are zipped before upload.
+The wheel and source archive are built and checked once, then reused. The Windows build supplies the installer for the GitHub Release, the Chocolatey download URL, and the WinGet installer hash. macOS graphical apps are zipped before upload.
 
 The workflow does not open a changelog pull request or commit the release notes to the repository. `ReleaseNotes.md` is used as the GitHub Release body and attached as a downloadable release file. CI also appends those notes to the package description in the wheel and source archive uploaded to PyPI, so each PyPI version shows its own notes. The tag must already be on `RELEASE_TARGET_BRANCH`.
 

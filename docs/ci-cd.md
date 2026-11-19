@@ -35,7 +35,11 @@ The local `release-*-tag` Make targets run the version bump and metadata generat
 
 After the reusable CI gate succeeds, `release-notes-and-draft` creates a draft GitHub Release while the optional API-docs PR, enabled native app builds, and PyPI publication run as independent branches. `release-ready` requires valid configuration, a successful CI gate, the draft release, and every enabled native build; disabled native builds are accepted as skipped. The final GitHub Release waits for `release-ready` and for PyPI when PyPI publishing is enabled. Optional Docker Hub, Chocolatey, Homebrew, and WinGet publishers run after the GitHub Release is published; Homebrew also requires PyPI publication to succeed.
 
+The three native build jobs share the local `build-release-assets` action. Each job runs it on its own operating system to build, verify, and upload that platform's files. When the Windows installer is enabled, the job checks that the expected Inno Setup `.exe` exists and matches `RELEASE_ARTIFACTS` before uploading `release-assets-windows`.
+
 The notes become the draft release body and a downloadable file on the GitHub Release. The same notes are included in the PyPI package description for that version. They are not committed to the repository. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
+
+Chocolatey packs a download script that points to the installer published with the GitHub Release. WinGet downloads `release-assets-windows` and calculates the installer checksum from the same build.
 
 All optional publishers are disabled until you configure them. Homebrew waits for the PyPI job because its formula installs the Python package from PyPI.
 

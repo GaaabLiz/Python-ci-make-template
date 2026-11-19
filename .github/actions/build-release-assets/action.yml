@@ -1,0 +1,50 @@
+name: Build release assets
+description: Build, verify, and upload release assets for the current runner
+
+inputs:
+  uv-version:
+    description: Exact uv version used by the release workflow
+    required: true
+  python-version:
+    description: Python version used for the native build
+    required: true
+  artifact-name:
+    description: Name of the platform artifact downloaded by release jobs
+    required: true
+  artifact-paths:
+    description: Newline-separated paths or globs to upload
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Make
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: choco install make --yes
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      with:
+        version: ${{ inputs.uv-version }}
+        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+
+    - name: Setup CI environment
+      shell: bash
+      run: make ci-setup-build
+
+    - name: Build application assets
+      shell: bash
+      run: make ci-build-release-assets
+
+    - name: Verify application assets
+      shell: bash
+      run: make ci-verify-release-artifacts
+
+    - name: Upload platform assets
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-paths }}
+        if-no-files-found: error

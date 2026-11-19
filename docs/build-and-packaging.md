@@ -45,7 +45,7 @@ The `make install-inno` helper installs Inno Setup with Chocolatey. It therefore
 
 `RELEASE_ARTIFACTS` in `project.mk` lists the app files and installers attached to a GitHub Release. It does not include the Python wheel and source archive; those are uploaded separately.
 
-The release job checks that each enabled platform created the expected files and that the file patterns match `RELEASE_ARTIFACTS`. Use these commands to inspect the results:
+Each enabled native build checks that its expected files were created and match `RELEASE_ARTIFACTS`. On Windows this includes the configured Inno Setup `.exe` when the installer is enabled. Use these commands to inspect the results:
 
 ```sh
 make ci-build-release-assets

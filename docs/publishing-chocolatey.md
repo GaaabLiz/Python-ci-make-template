@@ -47,7 +47,7 @@ Then set `CI_ENABLE_CHOCOLATEY_PUBLISH` to `1`. Change the existing lines in `pr
 
 ## 4. Publish a release
 
-Push a version tag such as `v1.2.3`. GitHub builds the Windows installer, adds it to the release, creates the Chocolatey package, and sends it to Chocolatey for review. The package may not appear in search until the review is complete.
+Push a version tag such as `v1.2.3`. The Windows build job builds and verifies the installer, then the release workflow attaches it to the GitHub Release. After that release is public, the Chocolatey job packs a download script that uses `CI_CHOCOLATEY_INSTALLER_URL` and sends the package to Chocolatey for review. The package may not appear in search until the review is complete.
 
 ## Optional: install Chocolatey to test locally
 

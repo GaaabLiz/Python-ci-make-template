@@ -38,6 +38,7 @@ If generated files or narrative docs disagree with an executable configuration f
 | `pyproject.toml` / `uv.lock` | Package metadata, dependency groups, build configuration, and locked dependency versions. |
 | `.github/workflows/ci.yml` | Reusable and event-triggered quality, test, and package build workflow. |
 | `.github/workflows/release.yml` | Version-tag release orchestration and optional publishers. |
+| `.github/actions/build-release-assets/action.yml` | Shared steps to build, verify, and upload files on each native release runner. |
 | `.github/workflows/publish-*.yml` | Reusable jobs for Docker Hub, Chocolatey, Homebrew, and WinGet. |
 | `.github/workflows/template-context-cleanup.yml` | One-time removal of template-specific AI context from repositories generated from this template. |
 | `.mk/scripts.py` | CLI entry point for CI settings, project metadata, icons, installers, and publisher files. |
@@ -68,10 +69,12 @@ The workflow starts on a pushed `v[0-9]*` tag.
 
 1. `ci-config` prints and validates release settings and confirms the tag commit belongs to `RELEASE_TARGET_BRANCH`.
 2. `ci-gate` calls the reusable CI workflow. Its tagged package build verifies the tag matches `pyproject.toml` and creates the release notes and package artifacts.
-3. After the gate, these jobs can run independently: `release-notes-and-draft`; optional `publish-release-docs`; configured Linux, macOS, and Windows app builds; and optional PyPI publication.
+3. After the gate, the draft release, optional API docs, configured native builds, and optional PyPI publication can run independently. The three native jobs use the same local action to build, verify, and upload their own files. The Windows job verifies the Inno Setup `.exe` when enabled.
 4. `release-ready` requires valid configuration, the successful CI gate, the draft release, and all enabled native builds. A native build disabled in `project.mk` is allowed to be skipped.
 5. `publish-release` makes the GitHub Release public only after `release-ready` and PyPI publication when PyPI is enabled. It downloads the verified package distributions, release notes, and enabled native assets.
 6. Docker Hub, Chocolatey, Homebrew, and WinGet publishing jobs run after the GitHub Release is published, when individually enabled. Homebrew also waits for successful PyPI publication. Failure of a downstream publisher does not roll back the GitHub Release.
+
+Chocolatey packages a link to the published Windows installer. WinGet uses the verified Windows artifact to calculate the installer checksum.
 
 API documentation publication is also optional: `CI_ENABLE_RELEASE_DOCS=1` generates `docs/api/` and opens or updates a PR. It does not gate publishing the release. Optional publisher jobs require their corresponding GitHub environments and credentials.
 

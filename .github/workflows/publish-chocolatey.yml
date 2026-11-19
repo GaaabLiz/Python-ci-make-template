@@ -37,10 +37,7 @@ jobs:
           enable-cache: true
 
       - name: Setup CI environment
-        run: make ci-setup-build
-
-      - name: Build Windows assets
-        run: make ci-build-chocolatey-assets
+        run: make ci-setup
 
       - name: Pack Chocolatey package
         run: make ci-pack-chocolatey

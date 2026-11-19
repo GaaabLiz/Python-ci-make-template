@@ -246,10 +246,12 @@ ci-build-release-assets:
 	fi; \
 	$(MAKE) --no-print-directory ci-list-build-artifacts
 
-## ci-verify-release-artifacts – Fail early when RELEASE_ARTIFACTS does not match generated files
+## ci-verify-release-artifacts – Verify each required app and installer is included in RELEASE_ARTIFACTS
 .PHONY: ci-verify-release-artifacts
+# Keep glob matches with spaces intact during shell expansion.
 ci-verify-release-artifacts:
 	@set -eu; \
+	IFS=; \
 	matched=0; \
 	echo "[ci-verify-release-artifacts] Checking RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"; \
 	for pattern in $(RELEASE_ARTIFACTS); do \
@@ -268,9 +270,11 @@ ci-verify-release-artifacts:
 		echo "[ci-verify-release-artifacts] Hint: installer projects usually need Output/*.exe added to RELEASE_ARTIFACTS."; \
 		exit 1; \
 	fi; \
-	for expected in $(foreach app,$(APPS_LIST),$(if $(and $(filter macos,$(OS_NAME)),$(filter 1,$(PYINSTALLER_WINDOWED))),dist/$(or $($(app)_NAME),$(app))-macos.app.zip,dist/$(or $($(app)_NAME),$(app))-$(OS_NAME)$(if $(filter windows,$(OS_NAME)),.exe))); do \
-		if [ ! -e "$$expected" ]; then \
-			echo "[ci-verify-release-artifacts] Error: expected app artifact $$expected was not built."; \
+	for expected in \
+		$(foreach app,$(APPS_LIST),"$(if $(and $(filter macos,$(OS_NAME)),$(filter 1,$(PYINSTALLER_WINDOWED))),dist/$(or $($(app)_NAME),$(app))-macos.app.zip,dist/$(or $($(app)_NAME),$(app))-$(OS_NAME)$(if $(filter windows,$(OS_NAME)),.exe))") \
+		$(if $(and $(filter windows,$(OS_NAME)),$(filter 1,$(ENABLE_WINDOWS_INSTALLER))),"$(CI_CONFIG_INSTALLER_PATH)"); do \
+		if [ ! -f "$$expected" ]; then \
+			echo "[ci-verify-release-artifacts] Error: expected release artifact $$expected was not built."; \
 			exit 1; \
 		fi; \
 		included=0; \

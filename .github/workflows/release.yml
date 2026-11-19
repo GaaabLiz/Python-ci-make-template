@@ -131,27 +131,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Build and upload application assets
+        uses: ./.github/actions/build-release-assets
         with:
-          version: ${{ needs.ci-config.outputs.uv_version }}
+          uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
-          enable-cache: true
-
-      - name: Setup CI environment
-        run: make ci-setup-build
-
-      - name: Build and verify application assets
-        run: |
-          make ci-build-release-assets
-          make ci-verify-release-artifacts
-
-      - name: Upload Linux assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-assets-linux
-          path: ${{ needs.ci-config.outputs.release_artifacts }}
-          if-no-files-found: error
+          artifact-name: release-assets-linux
+          artifact-paths: ${{ needs.ci-config.outputs.release_artifacts }}
 
   build-macos:
     name: Build macOS application assets
@@ -169,27 +155,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Build and upload application assets
+        uses: ./.github/actions/build-release-assets
         with:
-          version: ${{ needs.ci-config.outputs.uv_version }}
+          uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
-          enable-cache: true
-
-      - name: Setup CI environment
-        run: make ci-setup-build
-
-      - name: Build and verify application assets
-        run: |
-          make ci-build-release-assets
-          make ci-verify-release-artifacts
-
-      - name: Upload macOS assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-assets-macos
-          path: ${{ needs.ci-config.outputs.release_artifacts }}
-          if-no-files-found: error
+          artifact-name: release-assets-macos
+          artifact-paths: ${{ needs.ci-config.outputs.release_artifacts }}
 
   build-windows:
     name: Build Windows application assets
@@ -207,30 +179,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Make
-        run: choco install make --yes
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Build and upload application assets
+        uses: ./.github/actions/build-release-assets
         with:
-          version: ${{ needs.ci-config.outputs.uv_version }}
+          uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
-          enable-cache: true
-
-      - name: Setup CI environment
-        run: make ci-setup-build
-
-      - name: Build and verify application assets
-        run: |
-          make ci-build-release-assets
-          make ci-verify-release-artifacts
-
-      - name: Upload Windows assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-assets-windows
-          path: ${{ needs.ci-config.outputs.release_artifacts }}
-          if-no-files-found: error
+          artifact-name: release-assets-windows
+          artifact-paths: ${{ needs.ci-config.outputs.release_artifacts }}
 
   release-ready:
     name: Confirm release build completion
