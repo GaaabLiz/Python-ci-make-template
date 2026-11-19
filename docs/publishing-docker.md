@@ -28,7 +28,7 @@ Edit the existing Docker settings in `project.mk`:
 - Set `CI_DOCKER_ENTRYPOINT` to the command that starts your app in the container. The default is `python -m $(PYTHON_MAIN_PACKAGE)`.
 - Set `CI_DOCKER_PUSH_LATEST` to `1` if you also want a `latest` tag.
 
-For example, if your package is started with `python -m myapp`, the default command works. If it has an installed command named `myapp`, set `CI_DOCKER_ENTRYPOINT` to `myapp`. Package-specific Docker settings belong in `project.mk`; the shared image build command is in `Makefile`.
+If your package starts with `python -m myapp`, the default command works. If it has an installed command named `myapp`, set `CI_DOCKER_ENTRYPOINT` to `myapp`. Set package-specific Docker settings in `project.mk`. The shared image build recipe is in `.mk/publish.mk`.
 
 ## 4. Publish a release
 

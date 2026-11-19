@@ -5,7 +5,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,12 +31,17 @@ class TestReleaseMakeTargets(unittest.TestCase):
 
         for filename in ("Makefile", "project.mk", "pyproject.toml"):
             shutil.copy2(REPOSITORY_ROOT / filename, repository / filename)
+        shutil.copytree(
+            REPOSITORY_ROOT / ".mk",
+            repository / ".mk",
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
 
         _git(tmp_path, "init", "--bare", str(remote))
-        subprocess.run(["git", "init", "--initial-branch=main"], cwd=repository, check=True, capture_output=True)
+        _git(repository, "init", "--initial-branch=main")
         _git(repository, "config", "user.name", "Release Test")
         _git(repository, "config", "user.email", "release-test@example.invalid")
-        _git(repository, "add", "Makefile", "project.mk", "pyproject.toml")
+        _git(repository, "add", "Makefile", "project.mk", "pyproject.toml", ".mk")
         _git(repository, "commit", "-m", "initial project")
         _git(repository, "remote", "add", "origin", str(remote))
         _git(repository, "push", "--set-upstream", "origin", "main")
@@ -55,6 +59,7 @@ class TestReleaseMakeTargets(unittest.TestCase):
 
         environment = os.environ.copy()
         environment["PATH"] = f"{fake_bin}{os.pathsep}{environment['PATH']}"
+        environment["LC_ALL"] = "C"
         result = subprocess.run(
             [
                 "make",
@@ -74,6 +79,7 @@ class TestReleaseMakeTargets(unittest.TestCase):
             "release-patch-tag unexpectedly succeeded after the bump commit failed:\n"
             f"{result.stdout}{result.stderr}",
         )
+        self.assertIn("nothing to commit", result.stdout + result.stderr)
         tag = subprocess.run(
             ["git", "-C", str(repository), "show-ref", "--verify", "--quiet", "refs/tags/v0.0.3"],
             check=False,
@@ -81,11 +87,23 @@ class TestReleaseMakeTargets(unittest.TestCase):
             text=True,
         )
         remote_tag = subprocess.run(
-            ["git", "--git-dir", str(remote), "show-ref", "--verify", "--quiet", "refs/tags/v0.0.3"],
+            [
+                "git",
+                "--git-dir",
+                str(remote),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/tags/v0.0.3",
+            ],
             check=False,
             capture_output=True,
             text=True,
         )
 
-        self.assertNotEqual(tag.returncode, 0, "a failed bump commit must not leave a local release tag")
-        self.assertNotEqual(remote_tag.returncode, 0, "a failed bump commit must not publish a release tag")
+        self.assertNotEqual(
+            tag.returncode, 0, "a failed bump commit must not leave a local release tag"
+        )
+        self.assertNotEqual(
+            remote_tag.returncode, 0, "a failed bump commit must not publish a release tag"
+        )

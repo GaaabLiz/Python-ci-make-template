@@ -21,7 +21,7 @@ You usually only need to edit `pyproject.toml` and `project.mk`:
 
 - `pyproject.toml` describes your Python package and its dependencies.
 - `project.mk` contains the settings for your project: package folder, tests, supported Python versions, release files, and optional publishers.
-- `Makefile` contains the shared commands. Leave it as it is when configuring a project. Change it only when adding or fixing a command that should work the same way for all projects using this template.
+- `Makefile` lists the shared commands and loads their implementations from `.mk/`.
 
 ## What this template does
 

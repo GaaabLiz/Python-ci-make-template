@@ -5,7 +5,7 @@ Start with two files:
 - `pyproject.toml` describes the Python package: its name, version, dependencies, and required Python version.
 - `project.mk` sets the options for this particular project: which package folder to build, which Python version to use in CI, where tests are, and which optional release features to use.
 
-`Makefile` contains commands shared by all projects using the template. Do not put project-specific settings there. Normally, you do not need to edit it. Add or change a rule there only when it is a reusable command, not a setting for one project.
+`Makefile` loads the shared commands from `.mk/`. Edit the matching `.mk` file when changing a reusable recipe.
 
 ## Basic settings
 
@@ -74,7 +74,7 @@ A GitHub environment is a named place in repository settings for release setting
 ## Where do I put a change?
 
 - A name, URL, path, Python version, test command, or publisher setting for this project goes in `project.mk` (package metadata and dependencies go in `pyproject.toml`).
-- A command that should work in every project using the template goes in `Makefile`.
+- A command that should work in every project using the template goes in the matching Make module in `.mk/`.
 - GitHub workflow files normally only need changes if you are changing how jobs run, not to set project values.
 
 To see the effective settings, run:

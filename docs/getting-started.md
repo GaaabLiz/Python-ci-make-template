@@ -29,7 +29,7 @@ Edit these files:
 1. In `pyproject.toml`, set the package name, version, description, Python requirement, and Python dependencies.
 2. In `project.mk`, set the name of your Python package folder and any project-specific test or CI options.
 
-The template keeps reusable commands in `Makefile`. Do not edit it just to set your project's name, paths, Python versions, or publishing settings. For details, see [Configuration](configuration.md).
+`Makefile` loads the reusable commands from `.mk/`. Customize your project's name, paths, Python versions, and publishing settings as described in [Configuration](configuration.md).
 
 ## 3. Install project dependencies
 

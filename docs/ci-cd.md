@@ -21,7 +21,7 @@ The `ci.yml` workflow runs for:
 Its jobs run in this order:
 
 1. `workflow-lint` checks every workflow file with actionlint. It runs independently.
-2. `ci-config` validates the CI settings in `project.mk` and exports the Python version, test OS matrix, uv version, and release-notes path.
+2. `ci-config` runs `make ci-export-config`. Make resolves the settings from `project.mk` and passes them to the Python helper in `.mk/ci_config.py`. The target validates the settings before exporting job outputs, including the Python version, test OS matrix, uv version, and release-notes path.
 3. `quality` and `tests` start after `ci-config` and run in parallel. Quality checks run on Ubuntu. Tests use the configured Python version on each OS in `CI_TEST_OS_MATRIX`.
 4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs `make build` serially cleans artifacts, generates the project metadata module, and calls `build-uv`; on a version tag it verifies the tag version, generates release notes, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact. `build-uv` remains available as a standalone target.
 
@@ -63,7 +63,7 @@ make ci-validate-config
 make qa
 ```
 
-`ci-log-config` prints the active settings. `ci-validate-config` reports missing or inconsistent options. `qa` runs the configured checks and tests.
+`ci-log-config` prints the active settings. It uses `uv` when the system `python3` is older than 3.11 or unavailable. `ci-validate-config` uses `python3` (3.11 or newer) to report missing or inconsistent options. `qa` runs the configured checks and tests.
 
 ## Dependencies and generated changes
 

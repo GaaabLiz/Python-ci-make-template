@@ -7,11 +7,12 @@ The important idea is simple: project settings, shared commands, and Python pack
 | File or folder | What it is for |
 | --- | --- |
 | `project.mk` | Settings for this project: package folder, tests, CI versions, release files, and optional publishers. Start here when configuring the template. |
-| `Makefile` | Shared commands such as `make test`, `make qa`, and `make build`. Change it only to add or fix a command that should be common to all projects. |
+| `Makefile` | Default help, platform detection, and includes for shared commands such as `make test`, `make qa`, and `make build`. |
+| `.mk/*.mk` | Shared target implementations for development, builds, CI, releases, and publishing. |
 | `pyproject.toml` | Python package name, version, dependencies, supported Python versions, and build settings. |
 | `uv.lock` | Exact dependency versions used by `uv`. Commit this file and update it after changing dependencies. |
 | `.github/workflows/` | GitHub Actions instructions for running checks, builds, and releases. These workflows read project settings and call Make targets. |
-| `.mk/scripts.py` | Internal helper used by Make to generate files and app icons. You normally do not need to run or edit it directly. |
+| `.mk/*.py` | Internal CLI and helpers for CI configuration, package metadata, app icons, and publisher files. |
 
 ## Example project files
 

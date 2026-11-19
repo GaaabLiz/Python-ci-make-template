@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import io
 import json
 import os
 import re
-import shlex
 import shutil
 import struct
 import subprocess
@@ -17,6 +15,10 @@ import tomllib
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+import ci_config
+import winget
+from project_metadata import generate_project_module
 
 PNG_SIZES = [16, 32, 48, 64, 128, 256, 512, 1024]
 JPG_SIZES = [64, 128, 256, 512, 1024]
@@ -32,58 +34,6 @@ ICNS_TYPES: dict[int, bytes] = {
     512: b"ic09",
     1024: b"ic10",
 }
-
-
-def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
-    try:
-        if not pyproject_path.exists():
-            raise FileNotFoundError(f"File {pyproject_path} does not exist.")
-
-        with pyproject_path.open("rb") as file_handle:
-            data = tomllib.load(file_handle)
-
-        project = data.get("project", {})
-        raw_authors = project.get("authors", [])
-        authors: list[tuple[str | None, str | None]] = []
-        for entry in raw_authors:
-            name = entry.get("name")
-            email = entry.get("email")
-            if name or email:
-                authors.append((name, email))
-
-        info = {
-            "name": project.get("name"),
-            "version": project.get("version"),
-            "description": project.get("description"),
-            "requires_python": project.get("requires-python"),
-            "authors": authors,
-        }
-
-        authors_repr = (
-            "["
-            + ", ".join(f"({repr(name)}, {repr(email)})" for name, email in info["authors"])
-            + "]"
-        )
-
-        lines = [
-            "# fmt: off",
-            "name = " + repr(info["name"]),
-            "version = " + repr(info["version"]),
-            "description = " + repr(info["description"]),
-            "requires_python = " + repr(info["requires_python"]),
-            "authors = " + authors_repr,
-            "# fmt: on",
-        ]
-
-        py_file.parent.mkdir(parents=True, exist_ok=True)
-        with py_file.open("w", encoding="utf-8") as file_handle:
-            file_handle.write("\n".join(lines) + "\n")
-
-        print(f"Generated: {py_file}")
-        return 0
-    except Exception as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return 1
 
 
 def _escape_inno(value: str) -> str:
@@ -292,202 +242,6 @@ def convert_logo(svg_path: Path) -> int:
     return 0
 
 
-def validate_ci_config(
-    python_version: str,
-    test_os_json: str,
-    enable_pypi_publish: str,
-    enable_homebrew_publish: str,
-    enable_dockerhub_publish: str,
-    dockerhub_image: str,
-    enable_chocolatey_publish: str,
-    enable_winget_publish: str,
-    enable_release_docs: str,
-    build_linux: str,
-    build_macos: str,
-    build_windows: str,
-    enable_windows_installer: str,
-    apps_list: str,
-    release_artifacts: str,
-    installer_path: str,
-    docker_push_latest: str,
-    homebrew_license: str,
-    winget_license: str,
-    winget_license_url: str,
-    homebrew_homepage: str,
-    homebrew_tap_repo: str,
-    chocolatey_project_url: str,
-    chocolatey_license_url: str,
-    chocolatey_installer_url: str,
-    winget_homepage: str,
-    winget_installer_url: str,
-    winget_installer_file: str,
-    winget_fork_repo: str,
-    winget_package_identifier: str,
-    pyproject_path: str,
-    homebrew_resources_file: str,
-    pyinstaller_windowed: str,
-) -> int:
-    try:
-        if not re.fullmatch(r"\d+\.\d+", python_version):
-            raise ValueError(
-                "CI_PYTHON_VERSION must be one fixed major.minor version, such as 3.14."
-            )
-
-        for label, raw in (("CI_TEST_OS_MATRIX", test_os_json),):
-            value = json.loads(raw)
-            if not isinstance(value, list) or not value:
-                raise ValueError(f"{label} must be a non-empty JSON array.")
-            if any(not isinstance(item, str) or not item.strip() for item in value):
-                raise ValueError(f"{label} must contain only non-empty strings.")
-            if len(set(value)) != len(value):
-                raise ValueError(f"{label} contains duplicate values.")
-
-        toggles = {
-            "CI_ENABLE_PYPI_PUBLISH": enable_pypi_publish,
-            "CI_ENABLE_HOMEBREW_PUBLISH": enable_homebrew_publish,
-            "CI_ENABLE_DOCKERHUB_PUBLISH": enable_dockerhub_publish,
-            "CI_ENABLE_CHOCOLATEY_PUBLISH": enable_chocolatey_publish,
-            "CI_ENABLE_WINGET_PUBLISH": enable_winget_publish,
-            "CI_ENABLE_RELEASE_DOCS": enable_release_docs,
-            "CI_BUILD_LINUX": build_linux,
-            "CI_BUILD_MACOS": build_macos,
-            "CI_BUILD_WINDOWS": build_windows,
-            "ENABLE_WINDOWS_INSTALLER": enable_windows_installer,
-            "CI_DOCKER_PUSH_LATEST": docker_push_latest,
-            "PYINSTALLER_WINDOWED": pyinstaller_windowed,
-        }
-        for label, value in toggles.items():
-            if value not in {"0", "1"}:
-                raise ValueError(f"{label} must be 0 or 1.")
-
-        if enable_homebrew_publish == "1" and enable_pypi_publish != "1":
-            raise ValueError("Homebrew publication requires PyPI publication to be enabled.")
-
-        apps = shlex.split(apps_list)
-        if len(set(apps)) != len(apps):
-            raise ValueError("APPS_LIST contains duplicate application identifiers.")
-        if any(not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", app) for app in apps):
-            raise ValueError(
-                "APPS_LIST identifiers must contain only letters, numbers, and underscores."
-            )
-
-        native_build_enabled = any(
-            value == "1" for value in (build_linux, build_macos, build_windows)
-        )
-        if native_build_enabled and not apps:
-            raise ValueError("CI_BUILD_* requires at least one app in APPS_LIST.")
-
-        if enable_windows_installer == "1" and not apps:
-            raise ValueError("ENABLE_WINDOWS_INSTALLER requires at least one app in APPS_LIST.")
-
-        if enable_windows_installer == "1" and build_windows != "1":
-            raise ValueError("ENABLE_WINDOWS_INSTALLER requires CI_BUILD_WINDOWS=1.")
-
-        if enable_windows_installer == "1":
-            artifact_patterns = shlex.split(release_artifacts)
-            if not any(
-                fnmatch.fnmatchcase(installer_path, pattern) for pattern in artifact_patterns
-            ):
-                raise ValueError(
-                    "RELEASE_ARTIFACTS must include the configured Inno Setup installer "
-                    f"({installer_path}) when ENABLE_WINDOWS_INSTALLER=1."
-                )
-
-        installer_publishers = enable_chocolatey_publish == "1" or enable_winget_publish == "1"
-        if installer_publishers:
-            if build_windows != "1" or enable_windows_installer != "1":
-                raise ValueError(
-                    "Chocolatey and WinGet publication require CI_BUILD_WINDOWS=1 and "
-                    "ENABLE_WINDOWS_INSTALLER=1."
-                )
-        if enable_homebrew_publish == "1" and not homebrew_license.strip():
-            raise ValueError(
-                "CI_HOMEBREW_LICENSE must be configured before enabling Homebrew publication."
-            )
-        if enable_homebrew_publish == "1":
-            lower_homepage = homebrew_homepage.lower()
-            if not homebrew_homepage.startswith("https://") or any(
-                placeholder in lower_homepage
-                for placeholder in ("your-org", "your-repo", "example.com")
-            ):
-                raise ValueError(
-                    "CI_HOMEBREW_HOMEPAGE must be set to the project's real HTTPS homepage."
-                )
-            if not re.fullmatch(r"[A-Za-z0-9_.-]+/homebrew-[A-Za-z0-9_.-]+", homebrew_tap_repo):
-                raise ValueError("CI_HOMEBREW_TAP_REPO must use the owner/homebrew-<tap> format.")
-            if "your-org" in homebrew_tap_repo.lower():
-                raise ValueError("CI_HOMEBREW_TAP_REPO must name the project's real Homebrew tap.")
-            with Path(pyproject_path).open("rb") as file_handle:
-                project_metadata = tomllib.load(file_handle).get("project", {})
-            resource_path = Path(homebrew_resources_file)
-            resource_text = (
-                resource_path.read_text(encoding="utf-8") if resource_path.is_file() else ""
-            )
-            if project_metadata.get("dependencies") and 'resource "' not in resource_text:
-                raise ValueError(
-                    "Homebrew publication needs a resource file for the project's runtime "
-                    "dependencies. Set CI_HOMEBREW_RESOURCES_FILE and include all pinned direct "
-                    "and transitive resource "
-                    "blocks with SHA-256 values."
-                )
-
-        def require_project_url(label: str, value: str) -> None:
-            lower_value = value.lower()
-            if not value.startswith("https://") or any(
-                placeholder in lower_value
-                for placeholder in ("your-org", "your-repo", "example.com")
-            ):
-                raise ValueError(f"{label} must be set to the project's real HTTPS URL.")
-
-        if enable_chocolatey_publish == "1":
-            require_project_url("CI_CHOCOLATEY_PROJECT_URL", chocolatey_project_url)
-            require_project_url("CI_CHOCOLATEY_LICENSE_URL", chocolatey_license_url)
-            require_project_url("CI_CHOCOLATEY_INSTALLER_URL", chocolatey_installer_url)
-            if "{version}" not in chocolatey_installer_url:
-                raise ValueError(
-                    "CI_CHOCOLATEY_INSTALLER_URL must contain the {version} placeholder."
-                )
-
-        if enable_winget_publish == "1":
-            if not winget_license.strip():
-                raise ValueError(
-                    "CI_WINGET_LICENSE must be configured before enabling WinGet publication."
-                )
-            if not winget_license_url.startswith("https://"):
-                raise ValueError(
-                    "CI_WINGET_LICENSE_URL must be an HTTPS URL before enabling WinGet."
-                )
-            require_project_url("CI_WINGET_LICENSE_URL", winget_license_url)
-            require_project_url("CI_WINGET_HOMEPAGE", winget_homepage)
-            require_project_url("CI_WINGET_INSTALLER_URL", winget_installer_url)
-            if "{version}" not in winget_installer_url:
-                raise ValueError("CI_WINGET_INSTALLER_URL must contain the {version} placeholder.")
-            if winget_installer_file != installer_path:
-                raise ValueError(
-                    "CI_WINGET_INSTALLER_FILE must match the Inno Setup output path "
-                    f"({installer_path}) so its checksum matches the published installer."
-                )
-            if "your-github-user" in winget_fork_repo or len(winget_fork_repo.split("/")) != 2:
-                raise ValueError("CI_WINGET_FORK_REPO must point to your GitHub winget-pkgs fork.")
-            publisher, separator, package = winget_package_identifier.partition(".")
-            if not separator or not publisher or not package or publisher == "YourCompany":
-                raise ValueError(
-                    "CI_WINGET_PACKAGE_IDENTIFIER must be your unique Publisher.Package identifier."
-                )
-
-        if enable_dockerhub_publish == "1" and (
-            "/" not in dockerhub_image or "your-dockerhub-user" in dockerhub_image
-        ):
-            raise ValueError(
-                "CI_DOCKERHUB_IMAGE must be configured before enabling Docker Hub publication."
-            )
-
-        return 0
-    except (json.JSONDecodeError, OSError, ValueError) as error:
-        print(f"CI configuration error: {error}", file=sys.stderr)
-        return 1
-
-
 def generate_homebrew_formula(
     pyproject_path: Path,
     output_path: Path,
@@ -632,6 +386,15 @@ def smoke_install_artifacts(dist_dir: Path, import_name: str) -> int:
     return 0
 
 
+def make_settings() -> dict[str, str]:
+    prefix = "TEMPLATE_SETTING_"
+    return {
+        key.removeprefix(prefix): value
+        for key, value in os.environ.items()
+        if key.startswith(prefix)
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Utility entrypoint for template helper scripts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -692,74 +455,25 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-ci-config",
         help="Validate the CI Python version, OS matrix, and publication dependencies.",
     )
-    validate_ci_parser.add_argument("python_version")
-    validate_ci_parser.add_argument("test_os_json")
-    validate_ci_parser.add_argument("enable_pypi_publish")
-    validate_ci_parser.add_argument("enable_homebrew_publish")
-    validate_ci_parser.add_argument("enable_dockerhub_publish")
-    validate_ci_parser.add_argument("dockerhub_image")
-    validate_ci_parser.add_argument("enable_chocolatey_publish")
-    validate_ci_parser.add_argument("enable_winget_publish")
-    validate_ci_parser.add_argument("enable_release_docs")
-    validate_ci_parser.add_argument("build_linux")
-    validate_ci_parser.add_argument("build_macos")
-    validate_ci_parser.add_argument("build_windows")
-    validate_ci_parser.add_argument("enable_windows_installer")
-    validate_ci_parser.add_argument("apps_list")
-    validate_ci_parser.add_argument("release_artifacts")
-    validate_ci_parser.add_argument("installer_path")
-    validate_ci_parser.add_argument("docker_push_latest")
-    validate_ci_parser.add_argument("homebrew_license")
-    validate_ci_parser.add_argument("winget_license")
-    validate_ci_parser.add_argument("winget_license_url")
-    validate_ci_parser.add_argument("homebrew_homepage")
-    validate_ci_parser.add_argument("homebrew_tap_repo")
-    validate_ci_parser.add_argument("chocolatey_project_url")
-    validate_ci_parser.add_argument("chocolatey_license_url")
-    validate_ci_parser.add_argument("chocolatey_installer_url")
-    validate_ci_parser.add_argument("winget_homepage")
-    validate_ci_parser.add_argument("winget_installer_url")
-    validate_ci_parser.add_argument("winget_installer_file")
-    validate_ci_parser.add_argument("winget_fork_repo")
-    validate_ci_parser.add_argument("winget_package_identifier")
-    validate_ci_parser.add_argument("pyproject_path")
-    validate_ci_parser.add_argument("homebrew_resources_file")
-    validate_ci_parser.add_argument("pyinstaller_windowed")
+    for argument in ci_config.LEGACY_VALIDATION_ARGS:
+        validate_ci_parser.add_argument(argument)
     validate_ci_parser.set_defaults(
-        handler=lambda args: validate_ci_config(
-            args.python_version,
-            args.test_os_json,
-            args.enable_pypi_publish,
-            args.enable_homebrew_publish,
-            args.enable_dockerhub_publish,
-            args.dockerhub_image,
-            args.enable_chocolatey_publish,
-            args.enable_winget_publish,
-            args.enable_release_docs,
-            args.build_linux,
-            args.build_macos,
-            args.build_windows,
-            args.enable_windows_installer,
-            args.apps_list,
-            args.release_artifacts,
-            args.installer_path,
-            args.docker_push_latest,
-            args.homebrew_license,
-            args.winget_license,
-            args.winget_license_url,
-            args.homebrew_homepage,
-            args.homebrew_tap_repo,
-            args.chocolatey_project_url,
-            args.chocolatey_license_url,
-            args.chocolatey_installer_url,
-            args.winget_homepage,
-            args.winget_installer_url,
-            args.winget_installer_file,
-            args.winget_fork_repo,
-            args.winget_package_identifier,
-            args.pyproject_path,
-            args.homebrew_resources_file,
-            args.pyinstaller_windowed,
+        handler=lambda args: ci_config.run(
+            "validate",
+            {
+                key: getattr(args, argument)
+                for argument, key in ci_config.LEGACY_VALIDATION_ARGS.items()
+            },
+        )
+    )
+
+    config_parser = subparsers.add_parser(
+        "ci-config", help="Read effective CI settings exported by Make."
+    )
+    config_parser.add_argument("action", choices=("log", "validate", "export"))
+    config_parser.set_defaults(
+        handler=lambda args: ci_config.run(
+            args.action, make_settings(), os.getenv("GITHUB_OUTPUT", "")
         )
     )
 
@@ -790,6 +504,14 @@ def build_parser() -> argparse.ArgumentParser:
             args.executable,
             args.resources_file,
         )
+    )
+
+    winget_parser = subparsers.add_parser(
+        "gen-winget-manifests", help="Generate manifests for the verified WinGet installer."
+    )
+    winget_parser.add_argument("version")
+    winget_parser.set_defaults(
+        handler=lambda args: winget.generate_manifests(args.version, make_settings())
     )
 
     smoke_parser = subparsers.add_parser(

@@ -11,7 +11,7 @@ The sample command `python -m myapp` prints `2 + 3 = 5`. Its actual calculation 
 - `.github/workflows/*.yml` defines the actual CI, release, and publisher jobs, triggers, dependencies, permissions, and conditions.
 - `.github/workflows/template-context-cleanup.yml` removes `AGENTS.md`, `AI_CONTEXT.md`, `CLAUDE.md`, `GEMINI.md`, `.aider.conf.yml`, `.windsurfrules`, `.github/copilot-instructions.md`, `.clinerules/project-context.md`, and `.cursor/rules/project.mdc` from a newly generated repository, then removes itself in the cleanup commit.
 - `project.mk` defines project-specific Make settings and the defaults read by CI. Command-line Make assignments can override its `?=` defaults.
-- `Makefile` defines the reusable developer, build, release, and CI helper commands. Workflows call these targets so local and hosted operations share behavior.
+- `Makefile` loads the reusable developer, build, release, and CI targets from `.mk/`. Workflows call these targets so local and hosted operations share behavior.
 - `pyproject.toml` defines package identity, version, supported Python, dependencies, and build backend. `uv.lock` records resolved dependencies and must stay in sync.
 - `docs/` describes intended use. Update relevant prose and `docs/ci-workflows.drawio` whenever GitHub Actions behavior changes, including CI, release, and template setup.
 - `AI_CONTEXT.md` is the shared architecture and workflow overview; `AGENTS.md` contains required agent maintenance rules.
@@ -33,13 +33,15 @@ If generated files or narrative docs disagree with an executable configuration f
 | Path | Role |
 | --- | --- |
 | `project.mk` | Project identity, build paths, CI settings, release settings, app configuration, and publisher options. Start here for template customization. |
-| `Makefile` | Common Make targets for setup, QA, package/app builds, docs, releases, CI, and publishing. |
+| `Makefile` | Default help, platform detection, and includes for the shared Make targets. |
+| `.mk/*.mk` | Shared targets grouped by development, build, CI, release, and publishing. |
 | `pyproject.toml` / `uv.lock` | Package metadata, dependency groups, build configuration, and locked dependency versions. |
 | `.github/workflows/ci.yml` | Reusable and event-triggered quality, test, and package build workflow. |
 | `.github/workflows/release.yml` | Version-tag release orchestration and optional publishers. |
 | `.github/workflows/publish-*.yml` | Reusable jobs for Docker Hub, Chocolatey, Homebrew, and WinGet. |
 | `.github/workflows/template-context-cleanup.yml` | One-time removal of template-specific AI context from repositories generated from this template. |
-| `.mk/scripts.py` | Standard-library helpers for generating project metadata, icons, installers, and publisher files. |
+| `.mk/scripts.py` | CLI entry point for CI settings, project metadata, icons, installers, and publisher files. |
+| `.mk/ci_config.py`, `.mk/project_metadata.py`, `.mk/winget.py` | Config validation and export, runtime metadata generation, and WinGet manifest generation. |
 | `myapp/` | Example CLI package, calculation, and generated package metadata module. |
 | `tests/` | Example tests; test path and command are configurable in `project.mk`. |
 | `resources/` | Sample SVG logo and generated icon formats. |
@@ -54,7 +56,7 @@ The workflow starts on pushes to any branch, pull requests opened/synchronized/r
 Job flow:
 
 1. `workflow-lint` checks every workflow YAML file with actionlint. It runs independently.
-2. `ci-config` runs `make ci-export-config`, validates project settings, and exports Python, OS matrix, uv, and release-notes settings.
+2. `ci-config` runs `make ci-export-config`. Make passes the effective project settings to `.mk/ci_config.py` for validation and export of Python, OS matrix, uv, and release-notes settings.
 3. `quality` and `tests` each depend on `ci-config` and then run in parallel. Quality runs on Ubuntu. Tests use `CI_PYTHON_VERSION` across `CI_TEST_OS_MATRIX`.
 4. `build-package` waits for `ci-config`, `quality`, and all test jobs. On normal runs it calls `make build`. On a version tag it validates the tag version, generates per-release notes, and builds release distributions with those notes included in the PyPI package description. It smoke-tests the wheel and source archive, uploads `python-package-dist`, and on tag runs also uploads `release-notes`.
 

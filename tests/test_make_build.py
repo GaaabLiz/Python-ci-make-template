@@ -5,7 +5,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -20,9 +19,14 @@ class TestBuildMakeTargets(unittest.TestCase):
 
             for filename in ("Makefile", "project.mk", "pyproject.toml"):
                 shutil.copy2(REPOSITORY_ROOT / filename, repository / filename)
+            shutil.copytree(
+                REPOSITORY_ROOT / ".mk",
+                repository / ".mk",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
 
             uv = fake_bin / "uv"
-            uv.write_text("#!/bin/sh\n[ \"$1\" = build ]\n", encoding="utf-8")
+            uv.write_text('#!/bin/sh\n[ "$1" = build ]\n', encoding="utf-8")
             uv.chmod(0o755)
 
             environment = os.environ.copy()
@@ -48,6 +52,11 @@ class TestBuildMakeTargets(unittest.TestCase):
 
             for filename in ("Makefile", "project.mk", "pyproject.toml"):
                 shutil.copy2(REPOSITORY_ROOT / filename, repository / filename)
+            shutil.copytree(
+                REPOSITORY_ROOT / ".mk",
+                repository / ".mk",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
 
             dirty_artifact = repository / "dist" / "stale.whl"
             dirty_artifact.parent.mkdir()
@@ -57,19 +66,19 @@ class TestBuildMakeTargets(unittest.TestCase):
             uv.write_text(
                 "#!/bin/sh\n"
                 'if [ "$1" = "run" ]; then\n'
-                '    sleep 0.2\n'
-                '    if [ -e dist/stale.whl ]; then\n'
+                "    sleep 0.2\n"
+                "    if [ -e dist/stale.whl ]; then\n"
                 '        echo "generation started before clean completed" >&2\n'
                 "        exit 21\n"
                 "    fi\n"
-                '    touch .metadata-generated\n'
+                "    touch .metadata-generated\n"
                 'elif [ "$1" = "build" ]; then\n'
-                '    if [ ! -e .metadata-generated ]; then\n'
+                "    if [ ! -e .metadata-generated ]; then\n"
                 '        echo "build started before metadata generation completed" >&2\n'
                 "        exit 22\n"
                 "    fi\n"
-                '    mkdir -p dist\n'
-                '    touch dist/package.whl\n'
+                "    mkdir -p dist\n"
+                "    touch dist/package.whl\n"
                 "fi\n"
                 "exit 0\n",
                 encoding="utf-8",
