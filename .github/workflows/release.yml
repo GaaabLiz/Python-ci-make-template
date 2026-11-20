@@ -94,15 +94,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_AUTOMATION_TOKEN || github.token }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Set up the Python project
+        uses: ./.github/actions/setup-project
         with:
-          version: ${{ needs.ci-config.outputs.uv_version }}
+          uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
-          enable-cache: true
-
-      - name: Setup CI environment
-        run: make ci-setup
 
       - name: Prepare release documentation branch
         run: make ci-prepare-release-docs-branch

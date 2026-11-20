@@ -23,7 +23,9 @@ Its jobs run in this order:
 1. `workflow-lint` checks every workflow file with actionlint. It runs independently.
 2. `ci-config` runs `make ci-export-config`. Make resolves the settings from `project.mk` and passes them to the Python helper in `.mk/ci_config.py`. The target validates the settings before exporting job outputs, including the Python version, test OS matrix, uv version, and release-notes path.
 3. `quality` and `tests` start after `ci-config` and run in parallel. Quality checks run on Ubuntu. Tests use the configured Python version on each OS in `CI_TEST_OS_MATRIX`.
-4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs `make build` serially cleans artifacts, generates the project metadata module, and calls `build-uv`; on a version tag it verifies the tag version, generates release notes, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact. `build-uv` remains available as a standalone target.
+4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs `make build` serially cleans artifacts, generates the project metadata module, and calls `build-uv`. On a version tag the job verifies the tag version, generates release notes with pinned `git-cliff` via `uvx`, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact. `build-uv` remains available as a standalone target.
+
+The quality, test, and package jobs use the local `setup-project` action to install uv and sync the locked development dependencies. The action also installs Make on Windows.
 
 Tests are always required. If you use a test runner other than pytest, set `CI_TEST_COMMAND` in `project.mk`.
 
@@ -35,11 +37,11 @@ The local `release-*-tag` Make targets run the version bump and metadata generat
 
 After the reusable CI gate succeeds, `release-notes-and-draft` creates a draft GitHub Release while the optional API-docs PR, enabled native app builds, and PyPI publication run as independent branches. `release-ready` requires valid configuration, a successful CI gate, the draft release, and every enabled native build; disabled native builds are accepted as skipped. The final GitHub Release waits for `release-ready` and for PyPI when PyPI publishing is enabled. Optional Docker Hub, Chocolatey, Homebrew, and WinGet publishers run after the GitHub Release is published; Homebrew also requires PyPI publication to succeed.
 
-The three native build jobs share the local `build-release-assets` action. Each job runs it on its own operating system to build, verify, and upload that platform's files. When the Windows installer is enabled, the job checks that the expected Inno Setup `.exe` exists and matches `RELEASE_ARTIFACTS` before uploading `release-assets-windows`.
+The three native build jobs share the local `build-release-assets` action. Each job runs it on its own operating system to build, verify, and upload that platform's files. The action uses the `build` profile of `setup-project`, which syncs the `dev` and `build` dependency groups in one locked operation. When the Windows installer is enabled, the job checks that the expected Inno Setup `.exe` exists and matches `RELEASE_ARTIFACTS` before uploading `release-assets-windows`.
 
 The notes become the draft release body and a downloadable file on the GitHub Release. The same notes are included in the PyPI package description for that version. They are not committed to the repository. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
 
-Chocolatey packs a download script that points to the installer published with the GitHub Release. WinGet downloads `release-assets-windows` and calculates the installer checksum from the same build.
+The optional release-docs, Chocolatey, Homebrew, and WinGet jobs use the development profile of `setup-project`. Chocolatey packs a download script that points to the installer published with the GitHub Release. WinGet downloads `release-assets-windows` and calculates the installer checksum from the same build.
 
 All optional publishers are disabled until you configure them. Homebrew waits for the PyPI job because its formula installs the Python package from PyPI.
 

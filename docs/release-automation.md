@@ -38,7 +38,7 @@ The workflow does not open a changelog pull request or commit the release notes 
 
 ## Release notes and API documentation
 
-`cliff.toml` controls the content and grouping of `ReleaseNotes.md`. The generated file is temporary in CI; its path is set by `CI_RELEASE_NOTES_FILE` in `project.mk` and it is not committed to the source branch.
+`cliff.toml` controls the content and grouping of `ReleaseNotes.md`. CI runs the `git-cliff` version pinned in `CI_GIT_CLIFF_VERSION` using `uvx`. The generated file is temporary in CI, and `CI_RELEASE_NOTES_FILE` in `project.mk` sets its path.
 
 API documentation is optional. Set `CI_ENABLE_RELEASE_DOCS=1` in `project.mk` to generate it during a release. The generated pages go in `docs/api/` and are proposed in a separate pull request; the guides you wrote in `docs/` are kept.
 

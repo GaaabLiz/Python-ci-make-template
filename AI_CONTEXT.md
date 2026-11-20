@@ -9,6 +9,7 @@ The sample command `python -m myapp` prints `2 + 3 = 5`. Its actual calculation 
 ## Sources of truth
 
 - `.github/workflows/*.yml` defines the actual CI, release, and publisher jobs, triggers, dependencies, permissions, and conditions.
+- `.github/actions/*/action.yml` defines the shared steps that those workflows call.
 - `.github/workflows/template-context-cleanup.yml` removes `AGENTS.md`, `AI_CONTEXT.md`, `CLAUDE.md`, `GEMINI.md`, `.aider.conf.yml`, `.windsurfrules`, `.github/copilot-instructions.md`, `.clinerules/project-context.md`, and `.cursor/rules/project.mdc` from a newly generated repository, then removes itself in the cleanup commit.
 - `project.mk` defines project-specific Make settings and the defaults read by CI. Command-line Make assignments can override its `?=` defaults.
 - `Makefile` loads the reusable developer, build, release, and CI targets from `.mk/`. Workflows call these targets so local and hosted operations share behavior.
@@ -38,6 +39,7 @@ If generated files or narrative docs disagree with an executable configuration f
 | `pyproject.toml` / `uv.lock` | Package metadata, dependency groups, build configuration, and locked dependency versions. |
 | `.github/workflows/ci.yml` | Reusable and event-triggered quality, test, and package build workflow. |
 | `.github/workflows/release.yml` | Version-tag release orchestration and optional publishers. |
+| `.github/actions/setup-project/action.yml` | Shared Make and uv setup with locked development or native build dependencies. |
 | `.github/actions/build-release-assets/action.yml` | Shared steps to build, verify, and upload files on each native release runner. |
 | `.github/workflows/publish-*.yml` | Reusable jobs for Docker Hub, Chocolatey, Homebrew, and WinGet. |
 | `.github/workflows/template-context-cleanup.yml` | One-time removal of template-specific AI context from repositories generated from this template. |
@@ -59,7 +61,9 @@ Job flow:
 1. `workflow-lint` checks every workflow YAML file with actionlint. It runs independently.
 2. `ci-config` runs `make ci-export-config`. Make passes the effective project settings to `.mk/ci_config.py` for validation and export of Python, OS matrix, uv, and release-notes settings.
 3. `quality` and `tests` each depend on `ci-config` and then run in parallel. Quality runs on Ubuntu. Tests use `CI_PYTHON_VERSION` across `CI_TEST_OS_MATRIX`.
-4. `build-package` waits for `ci-config`, `quality`, and all test jobs. On normal runs it calls `make build`. On a version tag it validates the tag version, generates per-release notes, and builds release distributions with those notes included in the PyPI package description. It smoke-tests the wheel and source archive, uploads `python-package-dist`, and on tag runs also uploads `release-notes`.
+4. `build-package` waits for `ci-config`, `quality`, and all test jobs. On normal runs it calls `make build`. On a version tag it validates the tag version, generates per-release notes with pinned `git-cliff` via `uvx`, and builds release distributions with those notes included in the PyPI package description. It smoke-tests the wheel and source archive, uploads `python-package-dist`, and on tag runs also uploads `release-notes`.
+
+Quality, tests, package builds, optional release docs, and the Chocolatey, Homebrew, and WinGet publishers use the local `setup-project` action. Native builds use its `build` profile to sync the `dev` and `build` groups together in one locked sync.
 
 `CI_TEST_COMMAND`, `CI_TEST_OS_MATRIX`, `CI_PYTHON_VERSION`, `CI_QUALITY_TARGETS`, and `CI_UV_VERSION` are configured in `project.mk`. The CI gate is required for a release.
 

@@ -18,21 +18,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install Make
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: choco install make --yes
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+    - name: Set up the native build environment
+      uses: ./.github/actions/setup-project
       with:
-        version: ${{ inputs.uv-version }}
+        uv-version: ${{ inputs.uv-version }}
         python-version: ${{ inputs.python-version }}
-        enable-cache: true
-
-    - name: Setup CI environment
-      shell: bash
-      run: make ci-setup-build
+        profile: build
 
     - name: Build application assets
       shell: bash

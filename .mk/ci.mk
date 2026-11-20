@@ -81,16 +81,19 @@ ci-log-config:
 		uv run --no-project --python '>=3.11' python .mk/scripts.py ci-config log; \
 	fi
 
+# Include build dependencies when both setup targets are requested together.
+ci_setup_extra_groups = $(if $(filter ci-setup-build,$(MAKECMDGOALS)),--group build)
+
 ## ci-setup               – Prepare CI environment (install Python via uv + sync the dev group)
 .PHONY: ci-setup
 ci-setup:
 	@echo "[ci-setup] Installing Python $(CI_PYTHON_VERSION) via uv"
 	uv python install $(CI_PYTHON_VERSION)
-	@echo "[ci-setup] Syncing the default project and dev dependencies"
-	uv sync --group dev --python $(CI_PYTHON_VERSION) --locked
+	@echo "[ci-setup] Syncing the project and dev dependencies$(if $(ci_setup_extra_groups), and PyInstaller)"
+	uv sync --group dev $(ci_setup_extra_groups) --python $(CI_PYTHON_VERSION) --locked
 	@echo "[ci-setup] Tool versions"
 	uv --version
-	uv run python --version
+	uv run --no-sync python --version
 
 ## ci-quality             – Run CI static quality gates (lint, format-check, type-check)
 .PHONY: ci-quality
@@ -126,11 +129,10 @@ ci-validate-config:
 		esac; \
 	fi
 
-## ci-setup-build         – Add build-only dependencies to the CI environment
+## ci-setup-build         – Prepare CI environment with dev and PyInstaller dependencies
 .PHONY: ci-setup-build
+ci-setup-build: ci_setup_extra_groups = --group build
 ci-setup-build: ci-setup
-	@echo "[ci-setup-build] Syncing PyInstaller build dependencies"
-	uv sync --group dev --group build --python $(CI_PYTHON_VERSION) --locked
 
 ## ci-export-config       – Export CI configuration values to $GITHUB_OUTPUT
 .PHONY: ci-export-config
