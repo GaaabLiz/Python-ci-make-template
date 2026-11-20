@@ -24,7 +24,8 @@ Edit the existing Homebrew settings:
 
 - Set `CI_HOMEBREW_TAP_REPO` to `yourname/homebrew-tap`.
 - Set `CI_HOMEBREW_FORMULA_NAME` to the command users will install.
-- Set `CI_HOMEBREW_HOMEPAGE`, `CI_HOMEBREW_DESCRIPTION`, and `CI_HOMEBREW_LICENSE` to real project details. The license is an SPDX identifier such as `MIT`.
+- Set `PROJECT_REPOSITORY_URL` for the default homepage. Set `CI_HOMEBREW_HOMEPAGE` if the formula should link to a different site.
+- Set `CI_HOMEBREW_DESCRIPTION` and `CI_HOMEBREW_LICENSE`. The license is an SPDX identifier such as `MIT`.
 - Set `CI_ENABLE_HOMEBREW_PUBLISH` to `1` only after PyPI publication is configured.
 
 Update the existing lines in `project.mk`; do not paste in a second copy. Keep the tap token in the GitHub environment, not in a project file.

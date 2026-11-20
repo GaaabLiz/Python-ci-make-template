@@ -67,7 +67,9 @@ All publishers are off by default. For each one, follow its guide first, then se
 - Homebrew: `CI_ENABLE_HOMEBREW_PUBLISH` — [guide](publishing-homebrew.md); it requires PyPI publication
 - WinGet: `CI_ENABLE_WINGET_PUBLISH` — [guide](publishing-winget.md)
 
-Before enabling a publisher, replace example names, URLs, and licenses with real project details. Add the required secret to the matching GitHub environment as described in that publisher's guide. The configuration check reports common missing values before a release.
+Set `PROJECT_REPOSITORY_URL` in the Publishing section of `project.mk`. Chocolatey, Homebrew, and WinGet use it as their default project or homepage URL. Chocolatey and WinGet also use the shared `CI_RELEASE_INSTALLER_URL`, which combines the repository URL, release version, and installer filename. Use the publisher-specific settings for custom URLs.
+
+Before enabling a publisher, replace example names and licenses with real project details. Add the required secret to the matching GitHub environment as described in that publisher's guide. The configuration check reports common missing values before a release.
 
 A GitHub environment is a named place in repository settings for release settings and secrets. A secret is a private token or password used by a workflow; never put it in `project.mk` or commit it to Git.
 

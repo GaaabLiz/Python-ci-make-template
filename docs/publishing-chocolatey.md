@@ -27,13 +27,14 @@ In your GitHub repository, open **Settings → Environments** and create an envi
 
 ## 3. Set Chocolatey details in `project.mk`
 
-Edit the existing settings in `project.mk`:
+Set `PROJECT_REPOSITORY_URL` in the Publishing section of `project.mk`. Chocolatey uses it for the project page, the `main/LICENSE` link, and the default `CI_RELEASE_INSTALLER_URL`.
+
+Edit the package details in `project.mk`:
 
 - `CI_CHOCOLATEY_PACKAGE_ID`: the name users type after `choco install`
 - `CI_CHOCOLATEY_PACKAGE_TITLE` and `CI_CHOCOLATEY_AUTHORS`: the display name and publisher
-- `CI_CHOCOLATEY_PROJECT_URL` and `CI_CHOCOLATEY_LICENSE_URL`: real HTTPS links
 - `CI_CHOCOLATEY_SUMMARY` and `CI_CHOCOLATEY_DESCRIPTION`: short and full package descriptions
-- `CI_CHOCOLATEY_INSTALLER_URL`: the public URL for the GitHub Release installer
+- `CI_CHOCOLATEY_PROJECT_URL`, `CI_CHOCOLATEY_LICENSE_URL`, and `CI_CHOCOLATEY_INSTALLER_URL`: overrides for custom HTTPS links
 
 For example, the installer URL should look like:
 

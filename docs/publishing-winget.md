@@ -24,13 +24,15 @@ Keep the token secret. Do not put it in `project.mk` or commit it to the reposit
 
 ## 3. Set the package details in `project.mk`
 
+Set `PROJECT_REPOSITORY_URL` in the Publishing section of `project.mk`. It supplies the default homepage and is used to build the shared `CI_RELEASE_INSTALLER_URL`.
+
 Edit the existing `CI_WINGET_...` settings:
 
 - `CI_WINGET_FORK_REPO`: your fork, such as `yourname/winget-pkgs`
 - `CI_WINGET_PACKAGE_IDENTIFIER`: a unique ID in `Publisher.AppName` form, such as `YourCompany.MyApp`
 - `CI_WINGET_PACKAGE_NAME` and `CI_WINGET_PUBLISHER`: the names users see in Windows
-- `CI_WINGET_LICENSE`, `CI_WINGET_LICENSE_URL`, `CI_WINGET_HOMEPAGE`, and `CI_WINGET_SHORT_DESCRIPTION`: real package information
-- `CI_WINGET_INSTALLER_URL`: the public GitHub Release URL; keep the `{version}` placeholder and use the actual installer filename
+- `CI_WINGET_LICENSE`, `CI_WINGET_LICENSE_URL`, and `CI_WINGET_SHORT_DESCRIPTION`: real package information
+- `CI_WINGET_HOMEPAGE` and `CI_WINGET_INSTALLER_URL`: overrides for custom URLs. Keep the `{version}` placeholder and actual installer filename in the download URL.
 - `CI_WINGET_INSTALLER_FILE`: the path to that installer in the release build, usually already set by the template
 - `CI_ENABLE_WINGET_PUBLISH`: set to `1` after the fork, token, and installer are ready
 

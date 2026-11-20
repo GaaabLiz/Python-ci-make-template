@@ -230,6 +230,12 @@ CI_ENABLE_RELEASE_DOCS ?= 0
 #  Settings for the optional publishing destinations. See docs/publishing-*.md.
 # ==============================================================================
 
+# Repository URL used for publisher metadata and default download links.
+PROJECT_REPOSITORY_URL ?= https://github.com/your-org/your-repo
+
+# Default download URL for the Windows installer. Keep the {version} placeholder.
+CI_RELEASE_INSTALLER_URL ?= $(PROJECT_REPOSITORY_URL)/releases/download/v{version}/$(INNO_OUTPUT_BASE_FILENAME).exe
+
 #  7.1 PYPI
 #  -------------------------------------------------------------------------
 
@@ -285,8 +291,8 @@ CI_CHOCOLATEY_ENVIRONMENT ?= chocolatey
 CI_CHOCOLATEY_PACKAGE_ID ?= myapp
 CI_CHOCOLATEY_PACKAGE_TITLE ?= My App
 CI_CHOCOLATEY_AUTHORS ?= Your Name
-CI_CHOCOLATEY_PROJECT_URL ?= https://github.com/your-org/your-repo
-CI_CHOCOLATEY_LICENSE_URL ?= https://github.com/your-org/your-repo/blob/main/LICENSE
+CI_CHOCOLATEY_PROJECT_URL ?= $(PROJECT_REPOSITORY_URL)
+CI_CHOCOLATEY_LICENSE_URL ?= $(PROJECT_REPOSITORY_URL)/blob/main/LICENSE
 CI_CHOCOLATEY_TAGS ?= python cli
 
 # Human-readable metadata shown on Chocolatey package page.
@@ -295,7 +301,7 @@ CI_CHOCOLATEY_DESCRIPTION ?= $(INNO_APP_NAME) packaged from the GitHub release a
 
 # Installer artifact and install-script settings.
 # CI_CHOCOLATEY_INSTALLER_URL supports the {version} placeholder.
-CI_CHOCOLATEY_INSTALLER_URL ?= https://github.com/your-org/your-repo/releases/download/v{version}/$(INNO_OUTPUT_BASE_FILENAME).exe
+CI_CHOCOLATEY_INSTALLER_URL ?= $(CI_RELEASE_INSTALLER_URL)
 CI_CHOCOLATEY_SILENT_ARGS ?= /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
 CI_CHOCOLATEY_VALID_EXIT_CODES ?= 0 3010 1641
 
@@ -321,7 +327,7 @@ CI_HOMEBREW_TAP_REPO ?= your-org/homebrew-tap
 CI_HOMEBREW_FORMULA_NAME ?= myapp
 
 # Homepage URL shown in the formula metadata.
-CI_HOMEBREW_HOMEPAGE ?= https://github.com/your-org/your-repo
+CI_HOMEBREW_HOMEPAGE ?= $(PROJECT_REPOSITORY_URL)
 
 # Short description shown by `brew info`.
 CI_HOMEBREW_DESCRIPTION ?= A Python CLI application
@@ -362,11 +368,11 @@ CI_WINGET_PACKAGE_LOCALE ?= en-US
 CI_WINGET_SHORT_DESCRIPTION ?= Windows installer for $(INNO_APP_NAME)
 CI_WINGET_LICENSE ?=
 CI_WINGET_LICENSE_URL ?=
-CI_WINGET_HOMEPAGE ?= https://github.com/your-org/your-repo
+CI_WINGET_HOMEPAGE ?= $(PROJECT_REPOSITORY_URL)
 CI_WINGET_TAGS ?= python cli
 
 # Installer manifest settings. CI_WINGET_INSTALLER_URL supports {version}.
-CI_WINGET_INSTALLER_URL ?= https://github.com/your-org/your-repo/releases/download/v{version}/$(INNO_OUTPUT_BASE_FILENAME).exe
+CI_WINGET_INSTALLER_URL ?= $(CI_RELEASE_INSTALLER_URL)
 CI_WINGET_INSTALLER_TYPE ?= inno
 CI_WINGET_INSTALLER_ARCHITECTURE ?= x64
 CI_WINGET_INSTALLER_FILE ?= $(INNO_OUTPUT_DIR)/$(INNO_OUTPUT_BASE_FILENAME).exe

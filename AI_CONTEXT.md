@@ -78,7 +78,7 @@ The workflow starts on a pushed `v[0-9]*` tag.
 5. `publish-release` makes the GitHub Release public only after `release-ready` and PyPI publication when PyPI is enabled. It downloads the verified package distributions, release notes, and enabled native assets.
 6. Docker Hub, Chocolatey, Homebrew, and WinGet publishing jobs run after the GitHub Release is published, when individually enabled. Homebrew also waits for successful PyPI publication. Failure of a downstream publisher does not roll back the GitHub Release.
 
-Chocolatey packages a link to the published Windows installer. WinGet uses the verified Windows artifact to calculate the installer checksum.
+Chocolatey packages a link to the published Windows installer. WinGet uses the verified Windows artifact to calculate the installer checksum. Their default download links use `CI_RELEASE_INSTALLER_URL`, derived from `PROJECT_REPOSITORY_URL` in `project.mk`.
 
 API documentation publication is also optional: `CI_ENABLE_RELEASE_DOCS=1` generates `docs/api/` and opens or updates a PR. It does not gate publishing the release. Optional publisher jobs require their corresponding GitHub environments and credentials.
 
