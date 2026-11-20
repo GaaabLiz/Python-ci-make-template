@@ -93,39 +93,23 @@ build-uv:
 #    <id>_MAIN   entry-point script passed to PyInstaller
 #    <id>_ICO    Windows icon  (.ico)
 #    <id>_ICNS   macOS icon    (.icns)
-.PHONY: build-exe
-build-exe:
+## build-exe-onefile    – Build single-file executables with PyInstaller for each app in APPS_LIST
+.PHONY: build-exe build-exe-onefile
+build-exe build-exe-onefile:
 	@set -eu; \
 	if [ -z "$(strip $(APPS_LIST))" ]; then \
-		echo "[build-exe] APPS_LIST is empty -> skipping PyInstaller one-folder builds."; \
-		echo "[build-exe] Set APPS_LIST plus <app>_NAME/<app>_MAIN/<app>_ICO/<app>_ICNS in project.mk to enable executables."; \
+		echo "[$@] APPS_LIST is empty. Skipping PyInstaller builds."; \
+		echo "[$@] Configure APPS_LIST and the app settings in project.mk to enable executables."; \
 	else \
-		echo "[build-exe] Building PyInstaller apps: $(APPS_LIST)"; \
+		echo "[$@] Building PyInstaller apps: $(APPS_LIST)"; \
 		$(foreach app,$(APPS_LIST),\
 			uv run pyinstaller --noconfirm $(if $(filter 1,$(PYINSTALLER_WINDOWED)),--windowed,) \
+				$(if $(filter build-exe-onefile,$@),--onefile) \
 				$(if $(filter Darwin,$(UNAME_S)),--icon=$($(app)_ICNS),$(if $(filter windows,$(OS_NAME)),--icon=$($(app)_ICO),)) \
 				--name=$($(app)_NAME)-$(OS_NAME) \
 				$($(app)_MAIN); \
 		) \
-		echo "[build-exe] PyInstaller one-folder build completed."; \
-	fi
-
-## build-exe-onefile    – Build single-file executables with PyInstaller for each app in APPS_LIST
-.PHONY: build-exe-onefile
-build-exe-onefile:
-	@set -eu; \
-	if [ -z "$(strip $(APPS_LIST))" ]; then \
-		echo "[build-exe-onefile] APPS_LIST is empty -> skipping PyInstaller onefile builds."; \
-		echo "[build-exe-onefile] Package-only releases do not enable platform asset builds."; \
-	else \
-		echo "[build-exe-onefile] Building PyInstaller onefile apps: $(APPS_LIST)"; \
-		$(foreach app,$(APPS_LIST),\
-			uv run pyinstaller --noconfirm $(if $(filter 1,$(PYINSTALLER_WINDOWED)),--windowed,) --onefile \
-				$(if $(filter Darwin,$(UNAME_S)),--icon=$($(app)_ICNS),$(if $(filter windows,$(OS_NAME)),--icon=$($(app)_ICO),)) \
-				--name=$($(app)_NAME)-$(OS_NAME) \
-				$($(app)_MAIN); \
-		) \
-		echo "[build-exe-onefile] PyInstaller onefile build completed."; \
+		echo "[$@] PyInstaller build completed."; \
 	fi
 
 ## build-app            – Full app build: clean → gen-project-module → uv build → build-exe
