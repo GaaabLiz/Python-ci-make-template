@@ -34,25 +34,25 @@ For release builds, also set the needed `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `
 
 An installer is a setup program that guides Windows users through installing and removing an app. This template uses [Inno Setup](https://jrsoftware.org/isinfo.php).
 
-1. Configure a PyInstaller app and the `INNO_*` values in `project.mk`.
-2. Set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`.
-3. Add the installer path (usually `Output/*.exe`) to `RELEASE_ARTIFACTS`.
-4. To build locally, install Inno Setup, then run `make build-installer` from Git Bash or MSYS2 on Windows. The target detects a real Windows shell; it does not work from WSL.
+1. Configure a PyInstaller app in `project.mk` and set `INNO_APP_EXE` to its Windows executable. The sample uses `dist/myapp-windows.exe`.
+2. Set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`. Review the app name, publisher, and icon in the `INNO_*` settings.
+3. Include the installer output in `RELEASE_ARTIFACTS`. With the default output directory, use `dist/* Output/*.exe`.
+4. To build locally, install Inno Setup and run `make build-installer` in Git Bash or MSYS2 on Windows.
+
+The build generates `installer.iss` from [the Inno Setup layout](../.mk/templates/installer.iss) and `project.mk`. Run `make gen-inno-iss` to generate the script on its own.
 
 The `make install-inno` helper installs Inno Setup with Chocolatey. It therefore needs Chocolatey to be installed first; see the [official Chocolatey setup guide](https://docs.chocolatey.org/en-us/choco/setup/). You can also install Inno Setup directly and skip that helper, but make sure `ISCC.exe` is available on your `PATH` so Make can find it.
 
 ## Release files
 
-`RELEASE_ARTIFACTS` in `project.mk` lists the app files and installers attached to a GitHub Release. It does not include the Python wheel and source archive; those are uploaded separately.
+`RELEASE_ARTIFACTS` defaults to `dist/*`. Add any installer or other native files outside `dist/` in `project.mk`. Quote paths with spaces, use `**` to match across directory levels, and prefix an exclusion with `!`. The CI package build handles the wheel and source archive separately.
 
-Each enabled native build checks that its expected files were created and match `RELEASE_ARTIFACTS`. On Windows this includes the configured Inno Setup `.exe` when the installer is enabled. Use these commands to inspect the results:
+Each enabled native build checks that its expected files exist and are included in `RELEASE_ARTIFACTS`. The job stages those selected files for upload, preserving their repository-relative paths. To run the local build and verification, use the matching operating system and run:
 
 ```sh
 make ci-build-release-assets
-make ci-list-build-artifacts
+make ci-verify-release-artifacts
 ```
-
-Run the build on the matching operating system. The Windows installer can only be built on Windows, for example.
 
 ## App icons (optional)
 

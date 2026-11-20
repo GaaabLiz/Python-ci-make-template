@@ -10,6 +10,12 @@
 #  Generate project files and build packages, executables, and installers.
 # ==============================================================================
 
+app_binary_name = $(or $($(1)_NAME),$(1))-$(2)
+app_executable_path = dist/$(call app_binary_name,$(1),$(2))$(if $(filter windows,$(2)),.exe)
+builds_macos_bundle = $(and $(filter macos,$(1)),$(filter 1,$(PYINSTALLER_WINDOWED)))
+app_bundle_path = $(call app_executable_path,$(1),macos).app
+app_release_path = $(if $(call builds_macos_bundle,$(2)),$(call app_bundle_path,$(1)).zip,$(call app_executable_path,$(1),$(2)))
+
 ## install-pyinstaller  – Sync the build group containing PyInstaller
 .PHONY: install-pyinstaller
 install-pyinstaller:
@@ -72,8 +78,7 @@ gen-inno-iss:
 
 ## build                – Full build: clean → gen-project-module → uv build
 .PHONY: build
-build:
-	$(MAKE) --no-print-directory clean
+build: clean
 	$(MAKE) --no-print-directory gen-project-module
 	$(MAKE) --no-print-directory build-uv
 	@echo "[build] Build completed for package $(PYTHON_MAIN_PACKAGE)"
@@ -105,34 +110,28 @@ build-exe build-exe-onefile:
 		$(foreach app,$(APPS_LIST),\
 			uv run pyinstaller --noconfirm $(if $(filter 1,$(PYINSTALLER_WINDOWED)),--windowed,) \
 				$(if $(filter build-exe-onefile,$@),--onefile) \
-				$(if $(filter Darwin,$(UNAME_S)),--icon=$($(app)_ICNS),$(if $(filter windows,$(OS_NAME)),--icon=$($(app)_ICO),)) \
-				--name=$($(app)_NAME)-$(OS_NAME) \
-				$($(app)_MAIN); \
+				$(if $(filter macos,$(OS_NAME)),--icon="$($(app)_ICNS)",$(if $(filter windows,$(OS_NAME)),--icon="$($(app)_ICO)")) \
+				--name="$(call app_binary_name,$(app),$(OS_NAME))" \
+				"$($(app)_MAIN)"; \
 		) \
 		echo "[$@] PyInstaller build completed."; \
 	fi
 
 ## build-app            – Full app build: clean → gen-project-module → uv build → build-exe
 .PHONY: build-app
-build-app:
-	$(MAKE) --no-print-directory clean
-	$(MAKE) --no-print-directory gen-project-module
-	$(MAKE) --no-print-directory build-uv
+build-app: build
 	$(MAKE) --no-print-directory build-exe
 
 ## build-app-onefile    – Full app build using the --onefile PyInstaller mode
 .PHONY: build-app-onefile
-build-app-onefile:
-	$(MAKE) --no-print-directory clean
-	$(MAKE) --no-print-directory gen-project-module
-	$(MAKE) --no-print-directory build-uv
+build-app-onefile: build
 	$(MAKE) --no-print-directory build-exe-onefile
 
 ## installer            – Run Inno Setup to produce the Windows installer (Windows only)
 .PHONY: installer
 installer: gen-inno-iss
 ifeq ($(filter Darwin Linux,$(UNAME_S)),)
-	ISCC.exe $(INNO_SETUP_FILE)
+	ISCC.exe "$(INNO_SETUP_FILE)"
 else
 	@echo "Error: The installer target can only be run on Windows."
 	@exit 1
@@ -140,8 +139,7 @@ endif
 
 ## build-installer      – Full pipeline including the Windows installer step
 .PHONY: build-installer
-build-installer:
-	$(MAKE) --no-print-directory build-app-onefile
+build-installer: build-app-onefile
 	$(MAKE) --no-print-directory installer
 
 ## clean                – Remove build artefacts and caches (safe pre-build step)

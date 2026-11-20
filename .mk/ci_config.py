@@ -1,13 +1,14 @@
 """Read, validate, and export the project settings supplied by Make."""
 
-import fnmatch
 import json
 import re
 import shlex
 import sys
-import tomllib
 from collections.abc import Mapping
 from pathlib import Path
+
+from project_metadata import read_project_table
+from release_artifacts import is_selected, parse_patterns
 
 LEGACY_VALIDATION_ARGS = {
     "python_version": "CI_PYTHON_VERSION",
@@ -80,8 +81,6 @@ OUTPUT_SETTINGS = {
     "python_version": "CI_PYTHON_VERSION",
     "test_os_matrix": "CI_TEST_OS_MATRIX",
     "uv_version": "CI_UV_VERSION",
-    "release_target_branch": "RELEASE_TARGET_BRANCH",
-    "windows_installer_enabled": "ENABLE_WINDOWS_INSTALLER",
     "build_linux": "CI_BUILD_LINUX",
     "build_macos": "CI_BUILD_MACOS",
     "build_windows": "CI_BUILD_WINDOWS",
@@ -91,23 +90,13 @@ OUTPUT_SETTINGS = {
     "dockerhub_environment": "CI_DOCKERHUB_ENVIRONMENT",
     "enable_chocolatey_publish": "CI_ENABLE_CHOCOLATEY_PUBLISH",
     "chocolatey_environment": "CI_CHOCOLATEY_ENVIRONMENT",
-    "chocolatey_source_url": "CI_CHOCOLATEY_SOURCE_URL",
     "enable_homebrew_publish": "CI_ENABLE_HOMEBREW_PUBLISH",
     "homebrew_environment": "CI_HOMEBREW_ENVIRONMENT",
-    "homebrew_tap_repo": "CI_HOMEBREW_TAP_REPO",
-    "homebrew_formula_name": "CI_HOMEBREW_FORMULA_NAME",
     "enable_winget_publish": "CI_ENABLE_WINGET_PUBLISH",
     "winget_environment": "CI_WINGET_ENVIRONMENT",
-    "winget_fork_repo": "CI_WINGET_FORK_REPO",
-    "winget_package_identifier": "CI_WINGET_PACKAGE_IDENTIFIER",
-    "dockerhub_image": "CI_DOCKERHUB_IMAGE",
-    "dockerfile": "CI_DOCKERFILE",
-    "docker_build_context": "CI_DOCKER_BUILD_CONTEXT",
-    "docker_push_latest": "CI_DOCKER_PUSH_LATEST",
     "enable_release_docs": "CI_ENABLE_RELEASE_DOCS",
     "release_notes_file": "CI_RELEASE_NOTES_FILE",
     "release_notes_filename": "CI_CONFIG_RELEASE_NOTES_FILENAME",
-    "git_cliff_config": "CI_GIT_CLIFF_CONFIG",
 }
 
 
@@ -157,6 +146,9 @@ def validate(settings: Mapping[str, str]) -> None:
     )
     if native_build_enabled and not apps:
         raise ValueError("CI_BUILD_* requires at least one app in APPS_LIST.")
+    artifact_patterns = (
+        parse_patterns(settings["RELEASE_ARTIFACTS"]) if native_build_enabled else []
+    )
 
     if enable_windows_installer == "1" and not apps:
         raise ValueError("ENABLE_WINDOWS_INSTALLER requires at least one app in APPS_LIST.")
@@ -164,13 +156,13 @@ def validate(settings: Mapping[str, str]) -> None:
     if enable_windows_installer == "1" and build_windows != "1":
         raise ValueError("ENABLE_WINDOWS_INSTALLER requires CI_BUILD_WINDOWS=1.")
 
-    if enable_windows_installer == "1":
-        artifact_patterns = shlex.split(settings["RELEASE_ARTIFACTS"])
-        if not any(fnmatch.fnmatchcase(installer_path, pattern) for pattern in artifact_patterns):
-            raise ValueError(
-                "RELEASE_ARTIFACTS must include the configured Inno Setup installer "
-                f"({installer_path}) when ENABLE_WINDOWS_INSTALLER=1."
-            )
+    if enable_windows_installer == "1" and not is_selected(
+        installer_path, artifact_patterns, ignore_case=True
+    ):
+        raise ValueError(
+            "RELEASE_ARTIFACTS must include the configured Inno Setup installer "
+            f"({installer_path}) when ENABLE_WINDOWS_INSTALLER=1."
+        )
 
     installer_publishers = (
         settings["CI_ENABLE_CHOCOLATEY_PUBLISH"] == "1"
@@ -199,8 +191,7 @@ def validate(settings: Mapping[str, str]) -> None:
             raise ValueError("CI_HOMEBREW_TAP_REPO must use the owner/homebrew-<tap> format.")
         if "your-org" in homebrew_tap_repo.lower():
             raise ValueError("CI_HOMEBREW_TAP_REPO must name the project's real Homebrew tap.")
-        with Path(settings["FILE_PROJECT_TOML"]).open("rb") as file_handle:
-            project_metadata = tomllib.load(file_handle).get("project", {})
+        project_metadata = read_project_table(Path(settings["FILE_PROJECT_TOML"]))
         resource_path = Path(settings["CI_HOMEBREW_RESOURCES_FILE"])
         resource_text = resource_path.read_text(encoding="utf-8") if resource_path.is_file() else ""
         if project_metadata.get("dependencies") and 'resource "' not in resource_text:
@@ -276,11 +267,9 @@ def log(settings: Mapping[str, str]) -> None:
 def export(settings: Mapping[str, str], output: str) -> None:
     if not output:
         raise ValueError("GITHUB_OUTPUT is not set.")
-    artifacts = shlex.split(settings["RELEASE_ARTIFACTS"])
-    lines = [f"{name}={settings[key]}" for name, key in OUTPUT_SETTINGS.items()]
-    lines.extend(["release_artifacts<<EOF", *artifacts, "EOF"])
+    contents = "".join(f"{name}={settings[key]}\n" for name, key in OUTPUT_SETTINGS.items())
     with Path(output).open("a", encoding="utf-8", newline="\n") as file_handle:
-        file_handle.write("\n".join(lines) + "\n")
+        file_handle.write(contents)
     print(f"[ci-export-config] Exporting CI configuration to {output}")
 
 

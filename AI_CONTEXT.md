@@ -11,7 +11,7 @@ The sample command `python -m myapp` prints `2 + 3 = 5`. Its actual calculation 
 - `.github/workflows/*.yml` defines the actual CI, release, and publisher jobs, triggers, dependencies, permissions, and conditions.
 - `.github/actions/*/action.yml` defines the shared steps that those workflows call.
 - `.github/workflows/template-context-cleanup.yml` removes `AGENTS.md`, `AI_CONTEXT.md`, `CLAUDE.md`, `GEMINI.md`, `.aider.conf.yml`, `.windsurfrules`, `.github/copilot-instructions.md`, `.clinerules/project-context.md`, and `.cursor/rules/project.mdc` from a newly generated repository, then removes itself in the cleanup commit.
-- `project.mk` defines project-specific Make settings and the defaults read by CI. Command-line Make assignments can override its `?=` defaults.
+- `project.mk` defines project settings and their defaults. Defaults use literal values or refer to settings declared in the same file. Command-line Make assignments can override its `?=` defaults.
 - `Makefile` loads the reusable developer, build, release, and CI targets from `.mk/`. Workflows call these targets so local and hosted operations share behavior.
 - `pyproject.toml` defines package identity, version, supported Python, dependencies, and build backend. `uv.lock` records resolved dependencies and must stay in sync.
 - `docs/` describes intended use. Update relevant prose and `docs/ci-workflows.drawio` whenever GitHub Actions behavior changes, including CI, release, and template setup.
@@ -44,12 +44,13 @@ If generated files or narrative docs disagree with an executable configuration f
 | `.github/workflows/publish-*.yml` | Reusable jobs for Docker Hub, Chocolatey, Homebrew, and WinGet. |
 | `.github/workflows/template-context-cleanup.yml` | One-time removal of template-specific AI context from repositories generated from this template. |
 | `.mk/scripts.py` | CLI entry point for CI settings, project metadata, icons, installers, and publisher files. |
-| `.mk/ci_config.py`, `.mk/project_metadata.py`, `.mk/winget.py` | Config validation and export, runtime metadata generation, and WinGet manifest generation. |
+| `.mk/ci_config.py`, `.mk/project_metadata.py`, `.mk/winget.py` | Configuration validation and export, package metadata, and WinGet paths and manifests. |
+| `.mk/release_artifacts.py`, `.mk/inno.py` | Release file selection and staging, and Inno Setup script generation. |
 | `myapp/` | Example CLI package, calculation, and generated package metadata module. |
 | `tests/` | Example tests; test path and command are configurable in `project.mk`. |
 | `resources/` | Sample SVG logo and generated icon formats. |
 | `qt.mk` | Optional Qt Make targets; not enabled by default. |
-| `Dockerfile`, `installer.iss` | Example recipes used only when the matching app/publisher options are enabled. |
+| `Dockerfile`, `.mk/templates/installer.iss` | Docker image recipe and source layout for the generated Windows installer script. |
 | `docs/` | Setup, configuration, development, packaging, release, publishing, troubleshooting guides, and the editable CI diagram. |
 
 ## CI workflow (`.github/workflows/ci.yml`)
@@ -73,12 +74,14 @@ The workflow starts on a pushed `v[0-9]*` tag.
 
 1. `ci-config` prints and validates release settings and confirms the tag commit belongs to `RELEASE_TARGET_BRANCH`.
 2. `ci-gate` calls the reusable CI workflow. Its tagged package build verifies the tag matches `pyproject.toml` and creates the release notes and package artifacts.
-3. After the gate, the draft release, optional API docs, configured native builds, and optional PyPI publication can run independently. The three native jobs use the same local action to build, verify, and upload their own files. The Windows job verifies the Inno Setup `.exe` when enabled.
+3. After the gate, the draft release, optional API docs, configured native builds, and optional PyPI publication can run independently. The native jobs share an action that builds and stages the verified files using `RELEASE_ARTIFACTS`. The Windows job checks the enabled Inno Setup `.exe`. Uploads retain each file's repository-relative path for the download jobs.
 4. `release-ready` requires valid configuration, the successful CI gate, the draft release, and all enabled native builds. A native build disabled in `project.mk` is allowed to be skipped.
 5. `publish-release` makes the GitHub Release public only after `release-ready` and PyPI publication when PyPI is enabled. It downloads the verified package distributions, release notes, and enabled native assets.
 6. Docker Hub, Chocolatey, Homebrew, and WinGet publishing jobs run after the GitHub Release is published, when individually enabled. Homebrew also waits for successful PyPI publication. Failure of a downstream publisher does not roll back the GitHub Release.
 
 Chocolatey packages a link to the published Windows installer. WinGet uses the verified Windows artifact to calculate the installer checksum. Their default download links use `CI_RELEASE_INSTALLER_URL`, derived from `PROJECT_REPOSITORY_URL` in `project.mk`.
+
+`INNO_APP_EXE` selects the executable to package in the installer. `RELEASE_ARTIFACTS` defaults to `dist/*`. When enabling the Windows installer, include its output path in `RELEASE_ARTIFACTS`.
 
 API documentation publication is also optional: `CI_ENABLE_RELEASE_DOCS=1` generates `docs/api/` and opens or updates a PR. It does not gate publishing the release. Optional publisher jobs require their corresponding GitHub environments and credentials.
 

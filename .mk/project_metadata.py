@@ -3,6 +3,12 @@
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
+
+
+def read_project_table(path: Path) -> dict[str, Any]:
+    with path.open("rb") as file_handle:
+        return tomllib.load(file_handle).get("project", {})
 
 
 def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
@@ -10,10 +16,7 @@ def generate_project_module(pyproject_path: Path, py_file: Path) -> int:
         if not pyproject_path.exists():
             raise FileNotFoundError(f"File {pyproject_path} does not exist.")
 
-        with pyproject_path.open("rb") as file_handle:
-            data = tomllib.load(file_handle)
-
-        project = data.get("project", {})
+        project = read_project_table(pyproject_path)
         raw_authors = project.get("authors", [])
         authors: list[tuple[str | None, str | None]] = []
         for entry in raw_authors:

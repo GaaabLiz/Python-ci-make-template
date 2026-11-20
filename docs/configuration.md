@@ -55,7 +55,7 @@ Then set `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, or `CI_BUILD_WINDOWS` to `1` for th
 
 For a Windows installer, also set `ENABLE_WINDOWS_INSTALLER=1` and review the `INNO_*` settings in `project.mk`. See [Build and Packaging](build-and-packaging.md).
 
-`RELEASE_ARTIFACTS` lists the app files and installers to attach to the GitHub Release. It does not control the Python wheel and source archive; those are handled separately.
+`RELEASE_ARTIFACTS` selects the native files to attach to the GitHub Release. It defaults to `dist/*`. If you enable the Windows installer, include its output path in this setting. See [Release files](build-and-packaging.md#release-files).
 
 ## Publishing to package services
 

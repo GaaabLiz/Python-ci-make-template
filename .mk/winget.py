@@ -3,11 +3,22 @@
 import json
 from collections.abc import Mapping
 from hashlib import file_digest
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 def quote(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def manifest_path(identifier: str, version: str, *, local: bool = False) -> PurePosixPath:
+    publisher, application = identifier.split(".", 1)
+    relative = PurePosixPath("manifests", publisher[0].lower(), publisher, application, version)
+    return PurePosixPath("dist/winget") / relative if local else relative
+
+
+def print_manifest_path(identifier: str, version: str, local: bool) -> int:
+    print(manifest_path(identifier, version, local=local))
+    return 0
 
 
 def generate_manifests(version: str, settings: Mapping[str, str]) -> int:
@@ -34,31 +45,27 @@ def generate_manifests(version: str, settings: Mapping[str, str]) -> int:
     tags = settings["CI_WINGET_TAGS"].split()
     installer_url = settings["CI_WINGET_INSTALLER_URL"].replace("{version}", version)
 
-    publisher_from_id, application_from_id = package_identifier.split(".", 1)
-    root = (
-        Path("dist")
-        / "winget"
-        / "manifests"
-        / publisher_from_id[0].lower()
-        / publisher_from_id
-        / application_from_id
-        / version
-    )
+    root = Path(manifest_path(package_identifier, version, local=True))
     root.mkdir(parents=True, exist_ok=True)
     with installer_path.open("rb") as installer_file:
         installer_sha = file_digest(installer_file, "sha256").hexdigest().upper()
-    version_lines = [
-        f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.{manifest_version}.schema.json",
-        f"PackageIdentifier: {quote(package_identifier)}",
-        f"PackageVersion: {quote(version)}",
-        f"DefaultLocale: {quote(package_locale)}",
-        'ManifestType: "version"',
-        f"ManifestVersion: {quote(manifest_version)}",
-    ]
+
+    def write_manifest(kind: str, suffix: str, fields: list[str]) -> None:
+        schema = f"https://aka.ms/winget-manifest.{kind}.{manifest_version}.schema.json"
+        lines = [
+            f"# yaml-language-server: $schema={schema}",
+            f"PackageIdentifier: {quote(package_identifier)}",
+            f"PackageVersion: {quote(version)}",
+            *fields,
+            f"ManifestType: {quote(kind)}",
+            f"ManifestVersion: {quote(manifest_version)}",
+        ]
+        (root / f"{package_identifier}{suffix}.yaml").write_text(
+            "\n".join(lines) + "\n", encoding="utf-8"
+        )
+
+    write_manifest("version", "", [f"DefaultLocale: {quote(package_locale)}"])
     default_locale_lines = [
-        f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.{manifest_version}.schema.json",
-        f"PackageIdentifier: {quote(package_identifier)}",
-        f"PackageVersion: {quote(version)}",
         f"PackageLocale: {quote(package_locale)}",
         f"Publisher: {quote(publisher)}",
         f"PackageName: {quote(package_name)}",
@@ -71,33 +78,18 @@ def generate_manifests(version: str, settings: Mapping[str, str]) -> int:
     if tags:
         default_locale_lines.append("Tags:")
         default_locale_lines.extend(f"- {quote(tag)}" for tag in tags)
-    default_locale_lines.extend(
+    write_manifest("defaultLocale", f".locale.{package_locale}", default_locale_lines)
+    write_manifest(
+        "installer",
+        ".installer",
         [
-            'ManifestType: "defaultLocale"',
-            f"ManifestVersion: {quote(manifest_version)}",
-        ]
-    )
-    installer_lines = [
-        f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.{manifest_version}.schema.json",
-        f"PackageIdentifier: {quote(package_identifier)}",
-        f"PackageVersion: {quote(version)}",
-        "Installers:",
-        f"- Architecture: {quote(installer_arch)}",
-        f"  InstallerType: {quote(installer_type)}",
-        f"  InstallerUrl: {quote(installer_url)}",
-        f"  InstallerSha256: {quote(installer_sha)}",
-        f"  InstallerLocale: {quote(package_locale)}",
-        'ManifestType: "installer"',
-        f"ManifestVersion: {quote(manifest_version)}",
-    ]
-    (root / f"{package_identifier}.yaml").write_text(
-        "\n".join(version_lines) + "\n", encoding="utf-8"
-    )
-    (root / f"{package_identifier}.locale.{package_locale}.yaml").write_text(
-        "\n".join(default_locale_lines) + "\n", encoding="utf-8"
-    )
-    (root / f"{package_identifier}.installer.yaml").write_text(
-        "\n".join(installer_lines) + "\n", encoding="utf-8"
+            "Installers:",
+            f"- Architecture: {quote(installer_arch)}",
+            f"  InstallerType: {quote(installer_type)}",
+            f"  InstallerUrl: {quote(installer_url)}",
+            f"  InstallerSha256: {quote(installer_sha)}",
+            f"  InstallerLocale: {quote(package_locale)}",
+        ],
     )
     print(f"Generated WinGet manifests in {root}")
     return 0

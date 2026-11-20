@@ -10,7 +10,7 @@ The update uses three small YAML files, called **manifests**, to describe the pa
 
 You need a Windows installer that can install silently, without opening questions or windows that need user input. This template uses Inno Setup. See [Build and Packaging](build-and-packaging.md#windows-installer-optional).
 
-Set `APPS_LIST` and the app's settings, then set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`. Add the installer path, usually `Output/*.exe`, to `RELEASE_ARTIFACTS`.
+Set `APPS_LIST` and the app's settings, then set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`. Include the installer output in `RELEASE_ARTIFACTS`. With the default output directory, use `dist/* Output/*.exe`.
 
 ## 1. Fork the WinGet packages repository
 
@@ -33,7 +33,7 @@ Edit the existing `CI_WINGET_...` settings:
 - `CI_WINGET_PACKAGE_NAME` and `CI_WINGET_PUBLISHER`: the names users see in Windows
 - `CI_WINGET_LICENSE`, `CI_WINGET_LICENSE_URL`, and `CI_WINGET_SHORT_DESCRIPTION`: real package information
 - `CI_WINGET_HOMEPAGE` and `CI_WINGET_INSTALLER_URL`: overrides for custom URLs. Keep the `{version}` placeholder and actual installer filename in the download URL.
-- `CI_WINGET_INSTALLER_FILE`: the path to that installer in the release build, usually already set by the template
+- `CI_WINGET_INSTALLER_FILE`: defaults to the installer path from `INNO_OUTPUT_DIR` and `INNO_OUTPUT_BASE_FILENAME`
 - `CI_ENABLE_WINGET_PUBLISH`: set to `1` after the fork, token, and installer are ready
 
 Update the existing lines rather than adding a second copy of them.

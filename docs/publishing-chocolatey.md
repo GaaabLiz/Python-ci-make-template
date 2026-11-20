@@ -10,8 +10,9 @@ This template's Chocolatey package installs a Windows installer that is attached
 
 1. Configure a PyInstaller app and Inno Setup installer. See [Build and Packaging](build-and-packaging.md#windows-installer-optional).
 2. Set `ENABLE_WINDOWS_INSTALLER=1` and `CI_BUILD_WINDOWS=1` in `project.mk`.
-3. Add the installer path, usually `Output/*.exe`, to `RELEASE_ARTIFACTS`.
-4. Make sure the installer can run silently, without asking the user questions.
+3. Make sure the installer can run silently, without asking the user questions.
+
+Include the configured installer path in `RELEASE_ARTIFACTS`, for example `dist/* Output/*.exe` with the default output directory.
 
 ## 1. Create your Chocolatey account and package
 

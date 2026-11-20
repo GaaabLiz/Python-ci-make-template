@@ -31,13 +31,13 @@ Tests are always required. If you use a test runner other than pytest, set `CI_T
 
 ## What happens on a release
 
-The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. Its `ci-config` job validates release settings and checks that the tagged commit is already part of the branch named by `RELEASE_TARGET_BRANCH`. The reusable CI gate also checks that the tag version matches the one in `pyproject.toml`.
+The `release.yml` workflow runs when you push a version tag such as `v1.2.3`. Its `ci-config` job validates the release settings, exports the values read by later jobs, and checks that the tagged commit is already part of `RELEASE_TARGET_BRANCH`. The reusable CI gate also checks that the tag version matches the one in `pyproject.toml`.
 
 The local `release-*-tag` Make targets run the version bump and metadata generation in order, commit and push the bump to the release branch, and only then tag that pushed commit. A failed bump, generation, commit, rebase, or branch push stops the sequence before tag creation.
 
 After the reusable CI gate succeeds, `release-notes-and-draft` creates a draft GitHub Release while the optional API-docs PR, enabled native app builds, and PyPI publication run as independent branches. `release-ready` requires valid configuration, a successful CI gate, the draft release, and every enabled native build; disabled native builds are accepted as skipped. The final GitHub Release waits for `release-ready` and for PyPI when PyPI publishing is enabled. Optional Docker Hub, Chocolatey, Homebrew, and WinGet publishers run after the GitHub Release is published; Homebrew also requires PyPI publication to succeed.
 
-The three native build jobs share the local `build-release-assets` action. Each job runs it on its own operating system to build, verify, and upload that platform's files. The action uses the `build` profile of `setup-project`, which syncs the `dev` and `build` dependency groups in one locked operation. When the Windows installer is enabled, the job checks that the expected Inno Setup `.exe` exists and matches `RELEASE_ARTIFACTS` before uploading `release-assets-windows`.
+The three native jobs share the `build-release-assets` action. The action uses the `build` profile of `setup-project` to sync the `dev` and `build` groups together, then calls `make ci-build-release-assets`. Next, `make ci-stage-release-artifacts` resolves `RELEASE_ARTIFACTS`, checks each expected executable or bundle and the enabled Windows installer, and stages the selected files in a temporary directory. The action uploads that directory under the platform artifact name, retaining paths such as `dist/` and `Output/` for downstream jobs.
 
 The notes become the draft release body and a downloadable file on the GitHub Release. The same notes are included in the PyPI package description for that version. They are not committed to the repository. Python packages and platform app files are built once and reused for their release uploads. A windowed macOS `.app` is zipped so that it can be downloaded as one file.
 
@@ -53,7 +53,7 @@ Set these values in `project.mk`:
 - `CI_TEST_COMMAND`: how to run your tests
 - `CI_QUALITY_TARGETS`: which code-quality checks to run
 - `CI_BUILD_LINUX`, `CI_BUILD_MACOS`, and `CI_BUILD_WINDOWS`: which app builds to run
-- `RELEASE_ARTIFACTS`: which app files and installers to attach to the GitHub Release
+- `RELEASE_ARTIFACTS` selects native assets and defaults to `dist/*`. Include the output path of the Windows installer when enabled.
 - `RELEASE_TARGET_BRANCH`: the branch that release tags must belong to; optional API documentation PRs target this branch
 - `CI_ENABLE_..._PUBLISH`: optional publication jobs; see each publisher's guide
 

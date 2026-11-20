@@ -11,9 +11,6 @@ inputs:
   artifact-name:
     description: Name of the platform artifact downloaded by release jobs
     required: true
-  artifact-paths:
-    description: Newline-separated paths or globs to upload
-    required: true
 
 runs:
   using: composite
@@ -29,13 +26,14 @@ runs:
       shell: bash
       run: make ci-build-release-assets
 
-    - name: Verify application assets
+    - name: Verify and stage application assets
+      id: assets
       shell: bash
-      run: make ci-verify-release-artifacts
+      run: make ci-stage-release-artifacts
 
     - name: Upload platform assets
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.artifact-paths }}
+        path: ${{ steps.assets.outputs.directory }}
         if-no-files-found: error

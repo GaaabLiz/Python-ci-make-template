@@ -81,6 +81,7 @@ fabric.properties
 # macOS Finder metadata
 .DS_Store
 ReleaseNotes.md
+/installer.iss
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

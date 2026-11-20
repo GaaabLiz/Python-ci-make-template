@@ -20,7 +20,7 @@ The important idea is simple: project settings, shared commands, and Python pack
 - `tests/` contains example tests. Set `TESTS_PATH` in `project.mk` if yours are somewhere else.
 - `resources/` contains sample logo files. You can generate `.ico` and `.icns` app icons from an SVG logo.
 - `Dockerfile` is the sample Docker image recipe; it is only used if you enable Docker Hub publishing.
-- `installer.iss` is the sample Inno Setup recipe for a Windows installer; it is only used if you enable that installer.
+- `.mk/templates/installer.iss` defines the Inno Setup layout. `make gen-inno-iss` combines it with the `INNO_*` settings to generate `installer.iss`.
 - `cliff.toml` controls the per-release notes created from Git history. CI publishes these notes with GitHub and PyPI releases without committing them to the repository.
 
 ## GitHub workflows

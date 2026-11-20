@@ -1,105 +1,70 @@
-import os
-import shutil
 import subprocess
-import tempfile
-import unittest
+import textwrap
+from collections.abc import Callable
 from pathlib import Path
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+import pytest
 
 
-class TestBuildMakeTargets(unittest.TestCase):
-    def test_build_uv_is_standalone(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            tmp_path = Path(temporary_directory)
-            repository = tmp_path / "project"
-            fake_bin = tmp_path / "bin"
-            repository.mkdir()
-            fake_bin.mkdir()
+def test_build_uv_is_standalone(
+    make_project: Path,
+    run_make: Callable[..., subprocess.CompletedProcess[str]],
+    install_tool: Callable[[str, str], None],
+) -> None:
+    install_tool("uv", '[ "$1" = build ]')
 
-            for filename in ("Makefile", "project.mk", "pyproject.toml"):
-                shutil.copy2(REPOSITORY_ROOT / filename, repository / filename)
-            shutil.copytree(
-                REPOSITORY_ROOT / ".mk",
-                repository / ".mk",
-                ignore=shutil.ignore_patterns("__pycache__"),
-            )
+    result = run_make("build-uv")
 
-            uv = fake_bin / "uv"
-            uv.write_text('#!/bin/sh\n[ "$1" = build ]\n', encoding="utf-8")
-            uv.chmod(0o755)
-
-            environment = os.environ.copy()
-            environment["PATH"] = f"{fake_bin}{os.pathsep}{environment['PATH']}"
-            result = subprocess.run(
-                ["make", "--no-print-directory", "build-uv"],
-                cwd=repository,
-                env=environment,
-                capture_output=True,
-                text=True,
-            )
-
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertFalse((repository / ".metadata-generated").exists())
-
-    def test_build_serializes_clean_generation_and_uv_build(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            tmp_path = Path(temporary_directory)
-            repository = tmp_path / "project"
-            fake_bin = tmp_path / "bin"
-            repository.mkdir()
-            fake_bin.mkdir()
-
-            for filename in ("Makefile", "project.mk", "pyproject.toml"):
-                shutil.copy2(REPOSITORY_ROOT / filename, repository / filename)
-            shutil.copytree(
-                REPOSITORY_ROOT / ".mk",
-                repository / ".mk",
-                ignore=shutil.ignore_patterns("__pycache__"),
-            )
-
-            dirty_artifact = repository / "dist" / "stale.whl"
-            dirty_artifact.parent.mkdir()
-            dirty_artifact.touch()
-
-            uv = fake_bin / "uv"
-            uv.write_text(
-                "#!/bin/sh\n"
-                'if [ "$1" = "run" ]; then\n'
-                "    sleep 0.2\n"
-                "    if [ -e dist/stale.whl ]; then\n"
-                '        echo "generation started before clean completed" >&2\n'
-                "        exit 21\n"
-                "    fi\n"
-                "    touch .metadata-generated\n"
-                'elif [ "$1" = "build" ]; then\n'
-                "    if [ ! -e .metadata-generated ]; then\n"
-                '        echo "build started before metadata generation completed" >&2\n'
-                "        exit 22\n"
-                "    fi\n"
-                "    mkdir -p dist\n"
-                "    touch dist/package.whl\n"
-                "fi\n"
-                "exit 0\n",
-                encoding="utf-8",
-            )
-            uv.chmod(0o755)
-
-            environment = os.environ.copy()
-            environment["PATH"] = f"{fake_bin}{os.pathsep}{environment['PATH']}"
-            result = subprocess.run(
-                ["make", "--no-print-directory", "-j4", "build"],
-                cwd=repository,
-                env=environment,
-                capture_output=True,
-                text=True,
-            )
-
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertFalse(dirty_artifact.exists(), "clean must finish before the build starts")
-            self.assertTrue((repository / ".metadata-generated").exists())
-            self.assertTrue((repository / "dist" / "package.whl").exists())
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (make_project / ".metadata-generated").exists()
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.mark.parametrize(
+    ("target", "pyinstaller_mode"),
+    [("build", None), ("build-app", "onedir"), ("build-app-onefile", "onefile")],
+)
+def test_build_serializes_clean_generation_and_packaging(
+    make_project: Path,
+    run_make: Callable[..., subprocess.CompletedProcess[str]],
+    install_tool: Callable[[str, str], None],
+    target: str,
+    pyinstaller_mode: str | None,
+) -> None:
+    dirty_artifact = make_project / "dist" / "stale.whl"
+    dirty_artifact.parent.mkdir()
+    dirty_artifact.touch()
+    fake_uv = """
+        case "$1:$2" in
+          run:python)
+            sleep 0.2
+            [ ! -e dist/stale.whl ] || exit 21
+            touch .metadata-generated
+            ;;
+          build:)
+            [ -f .metadata-generated ] || exit 22
+            mkdir -p dist
+            touch dist/package.whl
+            ;;
+          run:pyinstaller)
+            [ -f dist/package.whl ] || exit 23
+            case " $* " in
+              *" --onefile "*) printf 'onefile' > .pyinstaller-mode ;;
+              *) printf 'onedir' > .pyinstaller-mode ;;
+            esac
+            ;;
+          *) exit 24 ;;
+        esac
+    """
+    install_tool("uv", textwrap.dedent(fake_uv))
+
+    result = run_make("-j4", target, "APPS_LIST=myapp", "myapp_MAIN=myapp/__main__.py")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not dirty_artifact.exists(), "clean must finish before the build starts"
+    assert (make_project / ".metadata-generated").exists()
+    assert (make_project / "dist" / "package.whl").exists()
+    mode_file = make_project / ".pyinstaller-mode"
+    if pyinstaller_mode is None:
+        assert not mode_file.exists()
+    else:
+        assert mode_file.read_text(encoding="utf-8") == pyinstaller_mode

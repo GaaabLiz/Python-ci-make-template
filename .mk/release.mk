@@ -45,7 +45,7 @@ define _release_impl
 		echo "  Updating Inno Setup version …"; \
 		$(SED_INPLACE) \
 			"s/#define $(INNO_SETUP_VERSION_VARIABLE) \"[^\"]*\"/#define $(INNO_SETUP_VERSION_VARIABLE) \"$$VERSION\"/" \
-			$(INNO_SETUP_FILE); \
+			"$(INNO_SETUP_FILE)"; \
 	fi; \
 	git commit -am "bump: v$$VERSION"; \
 	git pull --rebase; \
@@ -235,10 +235,10 @@ ci-build-release-assets:
 	else \
 		echo "[ci-build-release-assets] No platform assets configured; package distributions are built once by CI."; \
 	fi; \
-	if [ "$(OS_NAME)" = "macos" ] && [ "$(PYINSTALLER_WINDOWED)" = "1" ] && [ -n "$(strip $(APPS_LIST))" ]; then \
+	if [ -n "$(call builds_macos_bundle,$(OS_NAME))" ] && [ -n "$(strip $(APPS_LIST))" ]; then \
 		echo "[ci-build-release-assets] Archiving windowed macOS app bundles for release"; \
 		$(foreach app,$(APPS_LIST),\
-			APP_DIR="dist/$($(app)_NAME)-macos.app"; \
+			APP_DIR="$(call app_bundle_path,$(app))"; \
 			if [ ! -d "$$APP_DIR" ]; then echo "Error: expected macOS app bundle $$APP_DIR was not built."; exit 1; fi; \
 			ditto -c -k --sequesterRsrc --keepParent "$$APP_DIR" "$$APP_DIR.zip"; \
 			rm -rf "$$APP_DIR"; \
@@ -246,48 +246,24 @@ ci-build-release-assets:
 	fi; \
 	$(MAKE) --no-print-directory ci-list-build-artifacts
 
+expected_release_files = $(foreach app,$(APPS_LIST),"$(call app_release_path,$(app),$(OS_NAME))")
+ifeq ($(OS_NAME),windows)
+ifeq ($(ENABLE_WINDOWS_INSTALLER),1)
+expected_release_files += "$(CI_CONFIG_INSTALLER_PATH)"
+endif
+endif
+
+ci-verify-release-artifacts ci-stage-release-artifacts: export TEMPLATE_SETTING_RELEASE_ARTIFACTS = $(RELEASE_ARTIFACTS)
+
 ## ci-verify-release-artifacts – Verify each required app and installer is included in RELEASE_ARTIFACTS
 .PHONY: ci-verify-release-artifacts
-# Keep glob matches with spaces intact during shell expansion.
 ci-verify-release-artifacts:
-	@set -eu; \
-	IFS=; \
-	matched=0; \
-	echo "[ci-verify-release-artifacts] Checking RELEASE_ARTIFACTS=$(RELEASE_ARTIFACTS)"; \
-	for pattern in $(RELEASE_ARTIFACTS); do \
-		echo "[ci-verify-release-artifacts] Pattern: $$pattern"; \
-		for file in $$pattern; do \
-			if [ -e "$$file" ]; then \
-				echo "[ci-verify-release-artifacts]   matched: $$file"; \
-				matched=1; \
-			fi; \
-		done; \
-	done; \
-	if [ "$$matched" -ne 1 ]; then \
-		echo "[ci-verify-release-artifacts] Error: no platform assets matched RELEASE_ARTIFACTS."; \
-		echo "[ci-verify-release-artifacts] Hint: wheel and sdist files are built separately by the CI gate."; \
-		echo "[ci-verify-release-artifacts] Hint: executable projects must set APPS_LIST and companion *_NAME/*_MAIN/*_ICO/*_ICNS variables in project.mk."; \
-		echo "[ci-verify-release-artifacts] Hint: installer projects usually need Output/*.exe added to RELEASE_ARTIFACTS."; \
-		exit 1; \
-	fi; \
-	for expected in \
-		$(foreach app,$(APPS_LIST),"$(if $(and $(filter macos,$(OS_NAME)),$(filter 1,$(PYINSTALLER_WINDOWED))),dist/$(or $($(app)_NAME),$(app))-macos.app.zip,dist/$(or $($(app)_NAME),$(app))-$(OS_NAME)$(if $(filter windows,$(OS_NAME)),.exe))") \
-		$(if $(and $(filter windows,$(OS_NAME)),$(filter 1,$(ENABLE_WINDOWS_INSTALLER))),"$(CI_CONFIG_INSTALLER_PATH)"); do \
-		if [ ! -f "$$expected" ]; then \
-			echo "[ci-verify-release-artifacts] Error: expected release artifact $$expected was not built."; \
-			exit 1; \
-		fi; \
-		included=0; \
-		for pattern in $(RELEASE_ARTIFACTS); do \
-			for file in $$pattern; do \
-				if [ "$$file" = "$$expected" ]; then included=1; fi; \
-			done; \
-		done; \
-		if [ "$$included" -ne 1 ]; then \
-			echo "[ci-verify-release-artifacts] Error: $$expected is not included in RELEASE_ARTIFACTS."; \
-			exit 1; \
-		fi; \
-	done
+	@uv run --no-sync python .mk/scripts.py release-artifacts -- $(expected_release_files)
+
+## ci-stage-release-artifacts – Verify and stage native files for GitHub Actions upload
+.PHONY: ci-stage-release-artifacts
+ci-stage-release-artifacts:
+	@uv run --no-sync python .mk/scripts.py release-artifacts --stage -- $(expected_release_files)
 
 ## ci-verify-release-version – Fail unless the current v-tag matches the project version
 .PHONY: ci-verify-release-version

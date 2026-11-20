@@ -22,9 +22,10 @@ ci-export-docker-tag:
 		echo "Error: GITHUB_OUTPUT is not set."; \
 		exit 1; \
 	fi
-	@TAG="$$GITHUB_REF_NAME"; \
+	@set -e; \
+	TAG="$$GITHUB_REF_NAME"; \
 	if [ "$$GITHUB_REF_TYPE" != "tag" ] || [ -z "$$TAG" ]; then \
-		TAG=$$(python3 -c 'from pathlib import Path; import tomllib; data=tomllib.loads(Path("$(FILE_PROJECT_TOML)").read_text(encoding="utf-8")); print(data.get("project", {}).get("version", "latest"))'); \
+		TAG=$$(python3 .mk/scripts.py project-version "$(FILE_PROJECT_TOML)"); \
 	fi; \
 	echo "docker_image_tag=$$TAG" >> "$$GITHUB_OUTPUT"; \
 	echo "Resolved Docker image tag: $$TAG"
@@ -69,9 +70,9 @@ ci-publish-dockerhub: ci-docker-build
 	fi
 
 ## ci-build-chocolatey-assets – Build Windows artefacts consumed by the Chocolatey package
-.PHONY: ci-build-chocolatey-assets
-ci-build-chocolatey-assets:
-	$(MAKE) --no-print-directory ci-build-release-assets
+## ci-build-winget-assets  – Build Windows artefacts consumed by the WinGet manifests
+.PHONY: ci-build-chocolatey-assets ci-build-winget-assets
+ci-build-chocolatey-assets ci-build-winget-assets: ci-build-release-assets
 
 ## ci-pack-chocolatey     – Generate nuspec/install script and build a .nupkg in dist/chocolatey/
 .PHONY: ci-pack-chocolatey
@@ -170,11 +171,6 @@ ci-publish-homebrew:
 	git push; \
 	echo "[ci-publish-homebrew] Formula pushed to $(CI_HOMEBREW_TAP_REPO)"
 
-## ci-build-winget-assets  – Build Windows artefacts consumed by the WinGet manifests
-.PHONY: ci-build-winget-assets
-ci-build-winget-assets:
-	$(MAKE) --no-print-directory ci-build-release-assets
-
 winget_manifest_vars := \
 	CI_WINGET_HOMEPAGE \
 	CI_WINGET_INSTALLER_ARCHITECTURE \
@@ -194,6 +190,8 @@ winget_manifest_vars := \
 $(foreach var,$(winget_manifest_vars),\
 	$(eval ci-generate-winget-manifests: export TEMPLATE_SETTING_$(var) = $$($(var))))
 
+winget_manifest_path = uv run --no-sync python .mk/scripts.py winget-manifest-path "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"
+
 ## ci-generate-winget-manifests – Generate WinGet version/defaultLocale/installer manifests
 .PHONY: ci-generate-winget-manifests
 ci-generate-winget-manifests:
@@ -204,8 +202,9 @@ ci-generate-winget-manifests:
 ## ci-validate-winget-manifests – Validate generated WinGet manifests when winget is available
 .PHONY: ci-validate-winget-manifests
 ci-validate-winget-manifests:
-	@VERSION=$$(uv version --short); \
-	MANIFEST_DIR=$$(uv run python -c 'import sys; publisher, app = sys.argv[1].split(".", 1); print(f"dist/winget/manifests/{publisher[0].lower()}/{publisher}/{app}/{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
+	@set -eu; \
+	VERSION=$$(uv version --short); \
+	MANIFEST_DIR=$$($(winget_manifest_path) --local); \
 	if [ ! -d "$$MANIFEST_DIR" ]; then \
 		echo "Error: $$MANIFEST_DIR not found. Run make ci-generate-winget-manifests first."; \
 		exit 1; \
@@ -226,8 +225,8 @@ ci-publish-winget:
 		echo "Error: WINGET_GITHUB_TOKEN is not set."; exit 1; \
 	fi; \
 	VERSION=$$(uv version --short); \
-	SOURCE_DIR=$$(uv run python -c 'import sys; publisher, app = sys.argv[1].split(".", 1); print(f"dist/winget/manifests/{publisher[0].lower()}/{publisher}/{app}/{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
-	TARGET_PATH=$$(uv run python -c 'import sys; publisher, app = sys.argv[1].split(".", 1); print(f"manifests/{publisher[0].lower()}/{publisher}/{app}/{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
+	SOURCE_DIR="$$PWD/$$($(winget_manifest_path) --local)"; \
+	TARGET_PATH=$$($(winget_manifest_path)); \
 	BRANCH=$$(uv run python -c 'import re, sys; slug = re.sub(r"[^A-Za-z0-9]+", "-", sys.argv[1]).strip("-").lower(); print(f"winget-{slug}-{sys.argv[2]}")' "$(CI_WINGET_PACKAGE_IDENTIFIER)" "$$VERSION"); \
 	FORK_REPO="$(CI_WINGET_FORK_REPO)"; \
 	FORK_OWNER=$${FORK_REPO%%/*}; \

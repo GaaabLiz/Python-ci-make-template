@@ -13,6 +13,7 @@
 ci_config_targets := ci-log-config ci-validate-config ci-export-config
 CI_CONFIG_INSTALLER_PATH = $(INNO_OUTPUT_DIR)/$(INNO_OUTPUT_BASE_FILENAME).exe
 CI_CONFIG_RELEASE_NOTES_FILENAME = $(notdir $(CI_RELEASE_NOTES_FILE))
+windows_app_executables = $(foreach app,$(APPS_LIST),$(call app_executable_path,$(app),windows))
 
 ci_config_vars := \
 	APPS_LIST \
@@ -23,13 +24,10 @@ ci_config_vars := \
 	CI_CHOCOLATEY_INSTALLER_URL \
 	CI_CHOCOLATEY_LICENSE_URL \
 	CI_CHOCOLATEY_PROJECT_URL \
-	CI_CHOCOLATEY_SOURCE_URL \
 	CI_CONFIG_INSTALLER_PATH \
 	CI_CONFIG_RELEASE_NOTES_FILENAME \
-	CI_DOCKERFILE \
 	CI_DOCKERHUB_ENVIRONMENT \
 	CI_DOCKERHUB_IMAGE \
-	CI_DOCKER_BUILD_CONTEXT \
 	CI_DOCKER_ENTRYPOINT \
 	CI_DOCKER_PUSH_LATEST \
 	CI_ENABLE_CHOCOLATEY_PUBLISH \
@@ -38,9 +36,7 @@ ci_config_vars := \
 	CI_ENABLE_PYPI_PUBLISH \
 	CI_ENABLE_RELEASE_DOCS \
 	CI_ENABLE_WINGET_PUBLISH \
-	CI_GIT_CLIFF_CONFIG \
 	CI_HOMEBREW_ENVIRONMENT \
-	CI_HOMEBREW_FORMULA_NAME \
 	CI_HOMEBREW_HOMEPAGE \
 	CI_HOMEBREW_LICENSE \
 	CI_HOMEBREW_RESOURCES_FILE \
@@ -65,7 +61,6 @@ ci_config_vars := \
 	PYINSTALLER_WINDOWED \
 	PYTHON_MAIN_PACKAGE \
 	RELEASE_ARTIFACTS \
-	RELEASE_TARGET_BRANCH \
 	TESTS_PATH
 
 # Export the effective values only when a configuration target runs.
@@ -123,9 +118,9 @@ ci-validate-config:
 	fi; \
 	if [ "$(ENABLE_WINDOWS_INSTALLER)" = "1" ]; then \
 		if [ ! -f "$(INNO_APP_ICON)" ]; then echo "Error: INNO_APP_ICON must point to an existing .ico file."; exit 1; fi; \
-		case " $(foreach app,$(APPS_LIST),dist/$($(app)_NAME)-windows.exe) " in \
+		case " $(windows_app_executables) " in \
 			*" $(INNO_APP_EXE) "*) ;; \
-			*) echo "Error: INNO_APP_EXE must match one of the configured PyInstaller outputs ($(foreach app,$(APPS_LIST),dist/$($(app)_NAME)-windows.exe))."; exit 1 ;; \
+			*) echo "Error: INNO_APP_EXE must match one of the configured PyInstaller outputs ($(windows_app_executables))."; exit 1 ;; \
 		esac; \
 	fi
 

@@ -140,10 +140,10 @@ PYINSTALLER_WINDOWED ?= 0
 # ==============================================================================
 
 # Set to 1 to enable the Windows installer step in CI, or 0 to skip it.
-# When enabled, the workflow expects an Inno Setup script at INNO_SETUP_FILE.
+# When enabled, the build generates the Inno Setup script at INNO_SETUP_FILE.
 ENABLE_WINDOWS_INSTALLER ?= 0
 
-# Path to the Inno Setup script (.iss) used to generate the Windows installer.
+# Path to the generated Inno Setup script (.iss) for the Windows installer.
 INNO_SETUP_FILE ?= installer.iss
 
 # Name of the #define inside the .iss file that holds the application version
@@ -160,8 +160,7 @@ INNO_APP_PUBLISHER ?= Your Company
 # Must point to a .ico file for Windows installers.
 INNO_APP_ICON ?= resources/logo.ico
 
-# Relative path to the one-file executable produced by build-exe-onefile.
-# This is the binary that Inno Setup will package.
+# One-file executable that the installer packages.
 INNO_APP_EXE ?= dist/myapp-windows.exe
 
 # Default install directory under Program Files.
@@ -201,13 +200,8 @@ endif
 # Backwards-compatible alias for projects created from earlier template versions.
 RELEASE_CHANGELOG_TARGET_BRANCH ?= $(RELEASE_TARGET_BRANCH)
 
-# Glob patterns for optional platform assets attached to a GitHub Release.
-# Wheel and sdist files are built and uploaded separately by the CI gate.
-# Examples:
-#   dist/*                                          – PyInstaller output binaries
-#   dist/* Output/*.exe                             – binaries and Windows installer
-#   $(foreach a,$(APPS_LIST),dist/$($(a)_NAME)-*)  – per-app executable globs
-# Keep this aligned with the files produced by enabled platform builds.
+# Files or globs to attach to the GitHub Release. Quote paths with spaces.
+# For an installer in the default output directory, use dist/* Output/*.exe.
 RELEASE_ARTIFACTS ?= dist/*
 
 # Per-release notes are generated in CI, attached to GitHub Releases, and added to PyPI package descriptions.

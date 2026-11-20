@@ -15,12 +15,10 @@ jobs:
     outputs:
       python_version: ${{ steps.config.outputs.python_version }}
       uv_version: ${{ steps.config.outputs.uv_version }}
-      release_target_branch: ${{ steps.config.outputs.release_target_branch }}
       build_linux: ${{ steps.config.outputs.build_linux }}
       build_macos: ${{ steps.config.outputs.build_macos }}
       build_windows: ${{ steps.config.outputs.build_windows }}
       enable_release_docs: ${{ steps.config.outputs.enable_release_docs }}
-      release_artifacts: ${{ steps.config.outputs.release_artifacts }}
       release_notes_filename: ${{ steps.config.outputs.release_notes_filename }}
       enable_pypi_publish: ${{ steps.config.outputs.enable_pypi_publish }}
       pypi_environment: ${{ steps.config.outputs.pypi_environment }}
@@ -133,7 +131,6 @@ jobs:
           uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
           artifact-name: release-assets-linux
-          artifact-paths: ${{ needs.ci-config.outputs.release_artifacts }}
 
   build-macos:
     name: Build macOS application assets
@@ -157,7 +154,6 @@ jobs:
           uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
           artifact-name: release-assets-macos
-          artifact-paths: ${{ needs.ci-config.outputs.release_artifacts }}
 
   build-windows:
     name: Build Windows application assets
@@ -181,7 +177,6 @@ jobs:
           uv-version: ${{ needs.ci-config.outputs.uv_version }}
           python-version: ${{ needs.ci-config.outputs.python_version }}
           artifact-name: release-assets-windows
-          artifact-paths: ${{ needs.ci-config.outputs.release_artifacts }}
 
   release-ready:
     name: Confirm release build completion
