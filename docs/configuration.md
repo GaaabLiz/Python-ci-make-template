@@ -19,6 +19,7 @@ Open `project.mk` and check these values:
 | `CI_PYTHON_VERSION` | One Python major and minor version used for tests, code checks, builds, and release assets | `3.14` |
 | `CI_TEST_OS_MATRIX` | Operating systems used for tests with that Python version | `["ubuntu-latest", "macos-latest", "windows-latest"]` |
 | `CI_TEST_COMMAND` | Command used to run your tests | Default: `uv run pytest $(TESTS_PATH)` |
+| `PDOC_DOCFORMAT` | pdoc docstring format used by `make docs` | Default: `markdown` |
 | `CI_DOCKER_ENTRYPOINT` | Command that starts the app in its Docker image | Default: `python -m $(PYTHON_MAIN_PACKAGE)` |
 
 Set `CI_PYTHON_VERSION` to one version that works with the project's dependencies. Keep `requires-python` in `pyproject.toml` consistent with that version. CI tests that same Python version on every OS in `CI_TEST_OS_MATRIX`. If your project uses a different test tool, set `CI_TEST_COMMAND` to its command.

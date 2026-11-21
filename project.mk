@@ -217,6 +217,9 @@ CI_GIT_CLIFF_VERSION ?= 2.14.2
 # When enabled, CI opens a separate pull request for generated docs/api/ pages.
 CI_ENABLE_RELEASE_DOCS ?= 0
 
+# pdoc docstring format used by make docs.
+PDOC_DOCFORMAT ?= markdown
+
 
 # ==============================================================================
 #  7. PUBLISHING

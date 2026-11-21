@@ -89,10 +89,10 @@ test-cov-xml:
 .PHONY: qa
 qa: $(CI_QUALITY_TARGETS) test
 
-## docs                 – Generate HTML docs in docs/ using pdoc (markdown format)
+## docs                 – Generate HTML docs in docs/api using the configured pdoc format
 .PHONY: docs
 docs:
-	uv run --group docs pdoc -o docs/api -d markdown $(PYTHON_MAIN_PACKAGE)
+	uv run --group docs pdoc -o docs/api -d $(PDOC_DOCFORMAT) $(PYTHON_MAIN_PACKAGE)
 
 ## docs-open            – Generate docs and open docs/api/index.html
 .PHONY: docs-open
