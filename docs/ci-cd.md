@@ -25,7 +25,7 @@ Its jobs run in this order:
 3. `quality` and `tests` start after `ci-config` and run in parallel. Quality checks run on Ubuntu. Tests use the configured Python version on each OS in `CI_TEST_OS_MATRIX`.
 4. `build-package` waits for `ci-config`, `quality`, and every test job to succeed. On ordinary runs `make build` serially cleans artifacts, generates the project metadata module, and calls `build-uv`. On a version tag the job verifies the tag version, generates release notes with pinned `git-cliff` via `uvx`, and builds release distributions with those notes in the PyPI description. It smoke-tests both distributions and uploads them as `python-package-dist`. Tag runs also upload a `release-notes` artifact. `build-uv` remains available as a standalone target.
 
-The quality, test, and package jobs use the local `setup-project` action to install uv and sync the locked development dependencies. The action also installs Make on Windows.
+The quality, test, and package jobs use the local `setup-project` action to install uv and sync the locked development dependencies. The action also installs Make on Windows and sets `UV_PYTHON` to `CI_PYTHON_VERSION`, so uv commands use the configured CI interpreter even if `.python-version` specifies another version.
 
 Tests are always required. If you use a test runner other than pytest, set `CI_TEST_COMMAND` in `project.mk`.
 

@@ -66,6 +66,8 @@ Job flow:
 
 Quality, tests, package builds, optional release docs, and the Chocolatey, Homebrew, and WinGet publishers use the local `setup-project` action. Native builds use its `build` profile to sync the `dev` and `build` groups together in one locked sync.
 
+CI jobs set `UV_PYTHON` to `CI_PYTHON_VERSION`, so `uv` uses the configured CI interpreter even if `.python-version` specifies another version.
+
 `CI_TEST_COMMAND`, `CI_TEST_OS_MATRIX`, `CI_PYTHON_VERSION`, `CI_QUALITY_TARGETS`, and `CI_UV_VERSION` are configured in `project.mk`. The CI gate is required for a release.
 
 ## Release workflow (`.github/workflows/release.yml`)

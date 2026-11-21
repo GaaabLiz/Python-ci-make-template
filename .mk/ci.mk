@@ -11,6 +11,10 @@
 # ==============================================================================
 
 ci_config_targets := ci-log-config ci-validate-config ci-export-config
+# Keep every CI target on its configured interpreter, even when .python-version
+# selects a different version for local development.
+ci-%: export UV_PYTHON = $(CI_PYTHON_VERSION)
+
 CI_CONFIG_INSTALLER_PATH = $(INNO_OUTPUT_DIR)/$(INNO_OUTPUT_BASE_FILENAME).exe
 CI_CONFIG_RELEASE_NOTES_FILENAME = $(notdir $(CI_RELEASE_NOTES_FILE))
 windows_app_executables = $(foreach app,$(APPS_LIST),$(call app_executable_path,$(app),windows))

@@ -35,6 +35,8 @@ runs:
       run: |
         if [ -n "$SETUP_PROJECT_PYTHON" ]; then
           export CI_PYTHON_VERSION="$SETUP_PROJECT_PYTHON"
+          export UV_PYTHON="$SETUP_PROJECT_PYTHON"
+          echo "UV_PYTHON=$SETUP_PROJECT_PYTHON" >> "$GITHUB_ENV"
         fi
         case "$SETUP_PROJECT_PROFILE" in
           dev) make ci-setup ;;
